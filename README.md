@@ -176,7 +176,7 @@ fintrack-api/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/fintrack-api.git
+git clone https://github.com/eduardorocha-dev/backend-finance-api
 cd fintrack-api
 ```
 
@@ -401,4 +401,4 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ---
 
-<p align="center">Built as a backend engineering portfolio project — <a href="https://github.com/your-username">@your-username</a></p>
+<p align="center">Built as a backend engineering portfolio project — <a href="https://github.com/eduardorocha-dev">@eduardorcha-dev</a></p>
