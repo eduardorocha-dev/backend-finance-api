@@ -1,34 +1,52 @@
 from fastapi import APIRouter
+from app.schemas.budget import BudgetCreate, BudgetUpdate, BudgetRead, BudgetUsage
 
 router = APIRouter(prefix="/budgets", tags=["Budgets"])
 
 
-@router.get("")
+@router.get("", response_model=list[BudgetRead])
 async def list_budgets():
-    return {"message": "list budgets endpoint hit ✓", "method": "GET", "path": "/budgets"}
+    return []
 
 
-@router.post("", status_code=201)
-async def create_budget():
-    return {"message": "create budget endpoint hit ✓", "method": "POST", "path": "/budgets"}
+@router.post("", response_model=BudgetRead, status_code=201)
+async def create_budget(data: BudgetCreate):
+    return {
+        "id": 1,
+        "category_id": data.category_id,
+        "limit_amount": data.limit_amount,
+        "month": data.month,
+        "owner_id": 1,
+    }
 
 
-@router.get("/usage")
+@router.get("/usage", response_model=list[BudgetUsage])
 async def get_usage():
-    return {"message": "get budget usage endpoint hit ✓", "method": "GET", "path": "/budgets/usage"}
+    return []
 
 
-@router.get("/{budget_id}")
+@router.get("/{budget_id}", response_model=BudgetRead)
 async def get_budget(budget_id: int):
-    return {"message": "get budget endpoint hit ✓", "method": "GET", "path": f"/budgets/{budget_id}", "budget_id": budget_id}
+    return {
+        "id": budget_id,
+        "category_id": 1,
+        "limit_amount": "500.00",
+        "month": "2024-03-01",
+        "owner_id": 1,
+    }
 
 
-@router.patch("/{budget_id}")
-async def update_budget(budget_id: int):
-    return {"message": "update budget endpoint hit ✓", "method": "PATCH", "path": f"/budgets/{budget_id}", "budget_id": budget_id}
+@router.patch("/{budget_id}", response_model=BudgetRead)
+async def update_budget(budget_id: int, data: BudgetUpdate):
+    return {
+        "id": budget_id,
+        "category_id": 1,
+        "limit_amount": data.limit_amount or "500.00",
+        "month": "2024-03-01",
+        "owner_id": 1,
+    }
 
 
 @router.delete("/{budget_id}", status_code=204)
 async def delete_budget(budget_id: int):
     return None
-

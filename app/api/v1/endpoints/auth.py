@@ -1,19 +1,29 @@
 from fastapi import APIRouter
+from app.schemas.user import UserCreate, UserLogin, UserRead, TokenResponse
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@router.post("/register", status_code=201)
-async def register():
-    return {"message": "register endpoint hit ✓", "method": "POST", "path": "/auth/register"}
+@router.post("/register", response_model=UserRead, status_code=201)
+async def register(data: UserCreate):
+    return {
+        "id": 1,
+        "email": data.email,
+        "full_name": data.full_name,
+        "is_active": True,
+    }
 
 
-@router.post("/login")
-async def login():
-    return {"message": "login endpoint hit ✓", "method": "POST", "path": "/auth/login"}
+@router.post("/login", response_model=TokenResponse)
+async def login(data: UserLogin):
+    return {"access_token": "fake-token-123", "refresh_token": "fake-refresh-123"}
 
 
-@router.get("/me")
+@router.get("/me", response_model=UserRead)
 async def me():
-    return {"message": "me endpoint hit ✓", "method": "GET", "path": "/auth/me"}
-
+    return {
+        "id": 1,
+        "email": "alice@example.com",
+        "full_name": "Alice",
+        "is_active": True,
+    }
