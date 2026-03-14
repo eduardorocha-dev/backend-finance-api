@@ -1,6 +1,10 @@
 from datetime import date
 from fastapi import APIRouter, Query
-from app.schemas.report import MonthlySummary, CategoryBreakdownResponse, CashFlowResponse
+from app.schemas.report import (
+    MonthlySummary,
+    CategoryBreakdownResponse,
+    CashFlowResponse,
+)
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 

@@ -1,5 +1,10 @@
 from fastapi import APIRouter
-from app.schemas.account import AccountCreate, AccountUpdate, AccountRead, BalanceResponse
+from app.schemas.account import (
+    AccountCreate,
+    AccountUpdate,
+    AccountRead,
+    BalanceResponse,
+)
 
 router = APIRouter(prefix="/accounts", tags=["Accounts"])
 

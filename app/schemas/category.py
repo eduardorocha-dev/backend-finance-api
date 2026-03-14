@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 # ── Incoming ──────────────────────────────────────────────────────────────────
 
+
 class CategoryCreate(BaseModel):
     name: str
     # parent_id allows sub-categories, e.g. "Food" → "Groceries", "Restaurants"
@@ -16,6 +17,7 @@ class CategoryUpdate(BaseModel):
 
 
 # ── Outgoing ──────────────────────────────────────────────────────────────────
+
 
 class CategoryRead(BaseModel):
     id: int

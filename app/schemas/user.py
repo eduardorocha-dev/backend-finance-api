@@ -3,6 +3,7 @@ from pydantic import BaseModel, EmailStr
 
 # ── Incoming (what the client sends) ─────────────────────────────────────────
 
+
 class UserCreate(BaseModel):
     email: EmailStr
     full_name: str
@@ -20,6 +21,7 @@ class UserUpdate(BaseModel):
 
 
 # ── Outgoing (what the API sends back) ───────────────────────────────────────
+
 
 class UserRead(BaseModel):
     id: int

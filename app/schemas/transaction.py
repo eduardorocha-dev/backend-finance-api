@@ -5,12 +5,13 @@ from pydantic import BaseModel, field_validator
 
 
 class TransactionType(str, Enum):
-    INCOME   = "income"
-    EXPENSE  = "expense"
+    INCOME = "income"
+    EXPENSE = "expense"
     TRANSFER = "transfer"
 
 
 # ── Incoming ──────────────────────────────────────────────────────────────────
+
 
 class TransactionCreate(BaseModel):
     account_id: int
@@ -48,6 +49,7 @@ class TransactionFilter(BaseModel):
 
 
 # ── Outgoing ──────────────────────────────────────────────────────────────────
+
 
 class TransactionRead(BaseModel):
     id: int

@@ -5,6 +5,7 @@ from pydantic import BaseModel, field_validator
 
 # ── Incoming ──────────────────────────────────────────────────────────────────
 
+
 class BudgetCreate(BaseModel):
     category_id: int
     limit_amount: Decimal
@@ -21,7 +22,9 @@ class BudgetCreate(BaseModel):
     @field_validator("month")
     def month_must_be_first_day(cls, v):
         if v.day != 1:
-            raise ValueError("Month must be the first day of the month, e.g. 2024-03-01")
+            raise ValueError(
+                "Month must be the first day of the month, e.g. 2024-03-01"
+            )
         return v
 
 
@@ -30,6 +33,7 @@ class BudgetUpdate(BaseModel):
 
 
 # ── Outgoing ──────────────────────────────────────────────────────────────────
+
 
 class BudgetRead(BaseModel):
     id: int

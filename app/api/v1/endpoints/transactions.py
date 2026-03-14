@@ -1,5 +1,9 @@
 from fastapi import APIRouter
-from app.schemas.transaction import TransactionCreate, TransactionUpdate, TransactionRead
+from app.schemas.transaction import (
+    TransactionCreate,
+    TransactionUpdate,
+    TransactionRead,
+)
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 

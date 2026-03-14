@@ -5,9 +5,9 @@ from pydantic import BaseModel
 
 class AccountType(str, Enum):
     CHECKING = "checking"
-    SAVINGS  = "savings"
-    CREDIT   = "credit"
-    CASH     = "cash"
+    SAVINGS = "savings"
+    CREDIT = "credit"
+    CASH = "cash"
 
 
 class CurrencyCode(str, Enum):
@@ -18,6 +18,7 @@ class CurrencyCode(str, Enum):
 
 
 # ── Incoming ──────────────────────────────────────────────────────────────────
+
 
 class AccountCreate(BaseModel):
     name: str
@@ -31,6 +32,7 @@ class AccountUpdate(BaseModel):
 
 
 # ── Outgoing ──────────────────────────────────────────────────────────────────
+
 
 class AccountRead(BaseModel):
     id: int

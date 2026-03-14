@@ -30,4 +30,3 @@ app.include_router(api_router, prefix="/api/v1")
 async def health():
     """Check the API is running."""
     return {"status": "ok", "version": "0.1.0"}
-

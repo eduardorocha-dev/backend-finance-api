@@ -10,11 +10,12 @@ from pydantic import BaseModel
 
 # ── Outgoing ──────────────────────────────────────────────────────────────────
 
+
 class MonthlySummary(BaseModel):
     month: date
     total_income: Decimal
     total_expenses: Decimal
-    net: Decimal                # total_income - total_expenses
+    net: Decimal  # total_income - total_expenses
 
 
 class CategoryBreakdown(BaseModel):

@@ -9,13 +9,14 @@ class ExportFormat(str, Enum):
 
 
 class ExportStatus(str, Enum):
-    PENDING    = "pending"
+    PENDING = "pending"
     PROCESSING = "processing"
-    DONE       = "done"
-    FAILED     = "failed"
+    DONE = "done"
+    FAILED = "failed"
 
 
 # ── Incoming ──────────────────────────────────────────────────────────────────
+
 
 class ExportCreate(BaseModel):
     format: ExportFormat
@@ -24,6 +25,7 @@ class ExportCreate(BaseModel):
 
 
 # ── Outgoing ──────────────────────────────────────────────────────────────────
+
 
 class ExportRead(BaseModel):
     id: int
