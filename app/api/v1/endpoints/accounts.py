@@ -15,7 +15,7 @@ async def create_account():
 
 @router.get("/{account_id}")
 async def get_account(account_id: int):
-    return {"message": f"get account endpoint hit ✓", "method": "GET", "path": f"/accounts/{account_id}", "account_id": account_id}
+    return {"message": "get account endpoint hit ✓", "method": "GET", "path": f"/accounts/{account_id}", "account_id": account_id}
 
 
 @router.patch("/{account_id}")
