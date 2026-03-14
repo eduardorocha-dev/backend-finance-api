@@ -1,26 +1,45 @@
 from fastapi import APIRouter
+from app.schemas.account import AccountCreate, AccountUpdate, AccountRead, BalanceResponse
 
 router = APIRouter(prefix="/accounts", tags=["Accounts"])
 
 
-@router.get("")
+@router.get("", response_model=list[AccountRead])
 async def list_accounts():
-    return {"message": "list accounts endpoint hit ✓", "method": "GET", "path": "/accounts"}
+    return []
 
 
-@router.post("", status_code=201)
-async def create_account():
-    return {"message": "create account endpoint hit ✓", "method": "POST", "path": "/accounts"}
+@router.post("", response_model=AccountRead, status_code=201)
+async def create_account(data: AccountCreate):
+    return {
+        "id": 1,
+        "name": data.name,
+        "type": data.type,
+        "currency": data.currency,
+        "owner_id": 1,
+    }
 
 
-@router.get("/{account_id}")
+@router.get("/{account_id}", response_model=AccountRead)
 async def get_account(account_id: int):
-    return {"message": "get account endpoint hit ✓", "method": "GET", "path": f"/accounts/{account_id}", "account_id": account_id}
+    return {
+        "id": account_id,
+        "name": "Main Checking",
+        "type": "checking",
+        "currency": "USD",
+        "owner_id": 1,
+    }
 
 
-@router.patch("/{account_id}")
-async def update_account(account_id: int):
-    return {"message": "update account endpoint hit ✓", "method": "PATCH", "path": f"/accounts/{account_id}", "account_id": account_id}
+@router.patch("/{account_id}", response_model=AccountRead)
+async def update_account(account_id: int, data: AccountUpdate):
+    return {
+        "id": account_id,
+        "name": data.name or "Main Checking",
+        "type": "checking",
+        "currency": data.currency or "USD",
+        "owner_id": 1,
+    }
 
 
 @router.delete("/{account_id}", status_code=204)
@@ -28,7 +47,11 @@ async def delete_account(account_id: int):
     return None
 
 
-@router.get("/{account_id}/balance")
+@router.get("/{account_id}/balance", response_model=BalanceResponse)
 async def get_balance(account_id: int):
-    return {"message": "get balance endpoint hit ✓", "method": "GET", "path": f"/accounts/{account_id}/balance", "account_id": account_id}
-
+    return {
+        "account_id": account_id,
+        "account_name": "Main Checking",
+        "currency": "USD",
+        "balance": "1500.00",
+    }
