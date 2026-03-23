@@ -7,8 +7,14 @@ app = FastAPI(
     description="""
 Personal Finance Tracker REST API.
 
-> 🚧 Currently running with **stub endpoints** — no database connected yet.
-> Every endpoint returns a confirmation message so you can verify paths and methods are correct.
+> 🚧 Endpoints are still returning **stub responses** — repositories and services are not yet implemented.
+> The database layer (models, migrations) is fully set up and connected.
+
+## Status
+
+- **Models** — all 6 models defined and migrated to PostgreSQL
+- **Schemas** — all request/response schemas defined
+- **Endpoints** — routes exist, returning stub data
 
 ## Endpoints
 

@@ -1,6 +1,5 @@
 from pydantic import BaseModel, EmailStr
 
-
 # ── Incoming (what the client sends) ─────────────────────────────────────────
 
 

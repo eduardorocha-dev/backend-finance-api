@@ -1,0 +1,12 @@
+line-length = 100
+
+# Exclude auto-generated Alembic migration files
+extend-exclude = ["alembic/versions/"]
+
+[lint]
+select = ["E", "F", "I"]
+
+[lint.per-file-ignores]
+# SQLAlchemy forward references in Mapped["Model"] are valid at runtime
+# but Ruff F821 can't resolve them statically
+"app/models/*.py" = ["F821"]

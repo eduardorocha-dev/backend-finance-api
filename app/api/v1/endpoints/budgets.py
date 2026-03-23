@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from app.schemas.budget import BudgetCreate, BudgetUpdate, BudgetRead, BudgetUsage
+
+from app.schemas.budget import BudgetCreate, BudgetRead, BudgetUpdate, BudgetUsage
 
 router = APIRouter(prefix="/budgets", tags=["Budgets"])
 

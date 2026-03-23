@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
-from pydantic import BaseModel
 
+from pydantic import BaseModel
 
 # Reports have no incoming Create/Update schemas —
 # they are read-only views driven by query parameters.

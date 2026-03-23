@@ -1,8 +1,9 @@
 from fastapi import APIRouter
+
 from app.schemas.account import (
     AccountCreate,
-    AccountUpdate,
     AccountRead,
+    AccountUpdate,
     BalanceResponse,
 )
 
