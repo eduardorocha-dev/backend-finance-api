@@ -1,30 +1,105 @@
-from fastapi import APIRouter
+from typing import Annotated
 
-from app.schemas.user import TokenResponse, UserCreate, UserLogin, UserRead
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies import get_current_user
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+    hash_password,
+    verify_password,
+)
+from app.db.session import get_db
+from app.models.user import User
+from app.repositories.user import UserRepository
+from app.schemas.user import RefreshRequest, TokenResponse, UserCreate, UserLogin, UserRead
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@router.post("/register", response_model=UserRead, status_code=201)
-async def register(data: UserCreate):
-    return {
-        "id": 1,
-        "email": data.email,
-        "full_name": data.full_name,
-        "is_active": True,
-    }
+@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+async def register(
+    data: UserCreate,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> User:
+    repo = UserRepository(session)
+
+    if await repo.get_by_email(data.email):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered",
+        )
+
+    user = await repo.create(
+        email=data.email,
+        full_name=data.full_name,
+        hashed_password=hash_password(data.password),
+    )
+    await session.commit()
+    return user
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: UserLogin):
-    return {"access_token": "fake-token-123", "refresh_token": "fake-refresh-123"}
+async def login(
+    data: UserLogin,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> TokenResponse:
+    repo = UserRepository(session)
+    user = await repo.get_by_email(data.email)
+
+    if user is None or not verify_password(data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is inactive",
+        )
+
+    return TokenResponse(
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
+    )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(
+    data: RefreshRequest,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> TokenResponse:
+    from jose import JWTError
+
+    try:
+        user_id = decode_refresh_token(data.refresh_token)
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = await UserRepository(session).get_by_id(user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return TokenResponse(
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
+    )
 
 
 @router.get("/me", response_model=UserRead)
-async def me():
-    return {
-        "id": 1,
-        "email": "alice@example.com",
-        "full_name": "Alice",
-        "is_active": True,
-    }
+async def me(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    return current_user
