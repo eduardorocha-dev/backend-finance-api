@@ -177,6 +177,26 @@ class TransactionRepository(BaseRepository[Transaction]):
             for row in result.all()
         ]
 
+    async def get_balance_for_account(self, account_id: int) -> Decimal:
+        """Live balance: income adds, expenses and transfers subtract."""
+        result = await self.session.execute(
+            select(
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (Transaction.type == TransactionType.INCOME, Transaction.amount),
+                            else_=-Transaction.amount,
+                        )
+                    ),
+                    Decimal("0"),
+                )
+            ).where(
+                Transaction.account_id == account_id,
+                Transaction.is_deleted == False,  # noqa: E712
+            )
+        )
+        return result.scalar_one()
+
     async def get_spending_by_category_for_month(
         self, owner_id: int, category_id: int, month: date
     ) -> Decimal:
