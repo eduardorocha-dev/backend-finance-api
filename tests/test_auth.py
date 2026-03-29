@@ -4,6 +4,7 @@ from httpx import AsyncClient
 
 REGISTER_URL = "/api/v1/auth/register"
 LOGIN_URL = "/api/v1/auth/login"
+REFRESH_URL = "/api/v1/auth/refresh"
 ME_URL = "/api/v1/auth/me"
 
 USER_PAYLOAD = {
@@ -82,6 +83,40 @@ async def test_login_unknown_email(client: AsyncClient):
         LOGIN_URL,
         json={"email": "ghost@example.com", "password": "secret123"},
     )
+    assert response.status_code == 401
+
+
+# ── Refresh ───────────────────────────────────────────────────────────────────
+
+async def test_refresh_success(client: AsyncClient, registered_user: dict):
+    login_resp = await client.post(
+        LOGIN_URL,
+        json={"email": USER_PAYLOAD["email"], "password": USER_PAYLOAD["password"]},
+    )
+    refresh_token = login_resp.json()["refresh_token"]
+
+    response = await client.post(REFRESH_URL, json={"refresh_token": refresh_token})
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["token_type"] == "bearer"
+
+
+async def test_refresh_invalid_token(client: AsyncClient):
+    response = await client.post(REFRESH_URL, json={"refresh_token": "bad.token.here"})
+    assert response.status_code == 401
+
+
+async def test_refresh_with_access_token(client: AsyncClient, registered_user: dict):
+    """Passing an access token to /refresh must be rejected."""
+    login_resp = await client.post(
+        LOGIN_URL,
+        json={"email": USER_PAYLOAD["email"], "password": USER_PAYLOAD["password"]},
+    )
+    access_token = login_resp.json()["access_token"]
+
+    response = await client.post(REFRESH_URL, json={"refresh_token": access_token})
     assert response.status_code == 401
 
 
