@@ -37,16 +37,12 @@ async def setup_db():
 @pytest.fixture(autouse=True)
 async def clean_db():
     yield
-    table_names = ", ".join(
-        t.name for t in reversed(Base.metadata.sorted_tables)
-    )
+    table_names = ", ".join(t.name for t in reversed(Base.metadata.sorted_tables))
     async with engine_test.begin() as conn:
         await conn.execute(text(f"TRUNCATE {table_names} RESTART IDENTITY CASCADE"))
 
 
 @pytest.fixture
 async def client() -> AsyncClient:
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac

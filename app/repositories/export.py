@@ -19,9 +19,7 @@ class ExportRepository(BaseRepository[ExportJob]):
         )
         return list(result.scalars().all())
 
-    async def get_by_id_and_owner(
-        self, export_id: int, owner_id: int
-    ) -> ExportJob | None:
+    async def get_by_id_and_owner(self, export_id: int, owner_id: int) -> ExportJob | None:
         result = await self.session.execute(
             select(ExportJob).where(
                 ExportJob.id == export_id,

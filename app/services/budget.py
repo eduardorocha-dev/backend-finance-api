@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.budget import Budget
 from app.repositories.budget import BudgetRepository
@@ -26,9 +26,7 @@ class BudgetService:
         if category is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
 
-        existing = await self.repo.get_by_category_and_month(
-            user_id, data.category_id, data.month
-        )
+        existing = await self.repo.get_by_category_and_month(user_id, data.category_id, data.month)
         if existing is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

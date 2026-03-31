@@ -14,14 +14,10 @@ class AccountRepository(BaseRepository[Account]):
         super().__init__(Account, session)
 
     async def get_all_by_owner(self, owner_id: int) -> list[Account]:
-        result = await self.session.execute(
-            select(Account).where(Account.owner_id == owner_id)
-        )
+        result = await self.session.execute(select(Account).where(Account.owner_id == owner_id))
         return list(result.scalars().all())
 
-    async def get_by_id_and_owner(
-        self, account_id: int, owner_id: int
-    ) -> Account | None:
+    async def get_by_id_and_owner(self, account_id: int, owner_id: int) -> Account | None:
         result = await self.session.execute(
             select(Account).where(
                 Account.id == account_id,
@@ -37,9 +33,7 @@ class AccountRepository(BaseRepository[Account]):
         await self.session.refresh(account)
         return account
 
-    async def update_balance_snapshot(
-        self, account: Account, balance: Decimal
-    ) -> Account:
+    async def update_balance_snapshot(self, account: Account, balance: Decimal) -> Account:
         account.balance_snapshot = balance
         await self.session.flush()
         await self.session.refresh(account)

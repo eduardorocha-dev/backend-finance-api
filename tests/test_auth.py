@@ -1,7 +1,6 @@
 import pytest
 from httpx import AsyncClient
 
-
 REGISTER_URL = "/api/v1/auth/register"
 LOGIN_URL = "/api/v1/auth/login"
 REFRESH_URL = "/api/v1/auth/refresh"
@@ -34,6 +33,7 @@ async def auth_headers(client: AsyncClient, registered_user: dict) -> dict:
 
 # ── Register ──────────────────────────────────────────────────────────────────
 
+
 async def test_register_success(client: AsyncClient):
     response = await client.post(REGISTER_URL, json=USER_PAYLOAD)
     assert response.status_code == 201
@@ -50,13 +50,12 @@ async def test_register_duplicate_email(client: AsyncClient, registered_user: di
 
 
 async def test_register_invalid_email(client: AsyncClient):
-    response = await client.post(
-        REGISTER_URL, json={**USER_PAYLOAD, "email": "not-an-email"}
-    )
+    response = await client.post(REGISTER_URL, json={**USER_PAYLOAD, "email": "not-an-email"})
     assert response.status_code == 422
 
 
 # ── Login ─────────────────────────────────────────────────────────────────────
+
 
 async def test_login_success(client: AsyncClient, registered_user: dict):
     response = await client.post(
@@ -87,6 +86,7 @@ async def test_login_unknown_email(client: AsyncClient):
 
 
 # ── Refresh ───────────────────────────────────────────────────────────────────
+
 
 async def test_refresh_success(client: AsyncClient, registered_user: dict):
     login_resp = await client.post(
@@ -121,6 +121,7 @@ async def test_refresh_with_access_token(client: AsyncClient, registered_user: d
 
 
 # ── Me ────────────────────────────────────────────────────────────────────────
+
 
 async def test_me_success(client: AsyncClient, auth_headers: dict):
     response = await client.get(ME_URL, headers=auth_headers)

@@ -13,9 +13,7 @@ class Category(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     # Self-referential FK — None means top-level category
-    parent_id: Mapped[int | None] = mapped_column(
-        ForeignKey("categories.id"), nullable=True
-    )
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
 
     owner: Mapped["User"] = relationship(back_populates="categories")
     parent: Mapped["Category | None"] = relationship(

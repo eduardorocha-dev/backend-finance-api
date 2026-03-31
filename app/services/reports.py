@@ -30,9 +30,7 @@ class ReportService:
             net=income - expenses,
         )
 
-    async def category_breakdown(
-        self, user_id: int, month: date
-    ) -> CategoryBreakdownResponse:
+    async def category_breakdown(self, user_id: int, month: date) -> CategoryBreakdownResponse:
         rows = await self.tx_repo.get_category_breakdown(user_id, month)
         total = sum((r["total_amount"] for r in rows), Decimal("0"))
         breakdown = [
@@ -50,9 +48,7 @@ class ReportService:
             breakdown=breakdown,
         )
 
-    async def cashflow(
-        self, user_id: int, date_from: date, date_to: date
-    ) -> CashFlowResponse:
+    async def cashflow(self, user_id: int, date_from: date, date_to: date) -> CashFlowResponse:
         rows = await self.tx_repo.get_cashflow(user_id, date_from, date_to)
         entries = [
             CashFlowEntry(
