@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.transaction import Transaction, TransactionType
 from app.repositories.account import AccountRepository
@@ -44,23 +44,31 @@ class TransactionService:
         )
 
         if data.type == TransactionType.EXPENSE:
-            await self._check_budget_alert(user_id, data.category_id, category.name, data.date.date())
+            await self._check_budget_alert(
+                user_id, data.category_id, category.name, data.date.date()
+            )
 
         return transaction
 
     async def get(self, user_id: int, transaction_id: int) -> Transaction:
         transaction = await self.repo.get_by_id_and_owner(transaction_id, user_id)
         if transaction is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found"
+            )
         return transaction
 
-    async def update(self, user_id: int, transaction_id: int, data: TransactionUpdate) -> Transaction:
+    async def update(
+        self, user_id: int, transaction_id: int, data: TransactionUpdate
+    ) -> Transaction:
         transaction = await self.get(user_id, transaction_id)
 
         if data.category_id is not None:
             category = await self.cat_repo.get_by_id_and_owner(data.category_id, user_id)
             if category is None:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
+                )
 
         updates = data.model_dump(exclude_none=True)
         if not updates:
@@ -85,4 +93,5 @@ class TransactionService:
 
         if usage_pct >= _ALERT_THRESHOLD:
             from app.workers.tasks import send_budget_alert
+
             send_budget_alert.delay(user_id, category_name, round(usage_pct * 100, 1))

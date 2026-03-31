@@ -42,9 +42,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_by_id_and_owner(
-        self, transaction_id: int, owner_id: int
-    ) -> Transaction | None:
+    async def get_by_id_and_owner(self, transaction_id: int, owner_id: int) -> Transaction | None:
         result = await self.session.execute(
             select(Transaction)
             .join(Account, Transaction.account_id == Account.id)
@@ -102,9 +100,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         row = result.one()
         return {"total_income": row.total_income, "total_expenses": row.total_expenses}
 
-    async def get_category_breakdown(
-        self, owner_id: int, month: date
-    ) -> list[dict]:
+    async def get_category_breakdown(self, owner_id: int, month: date) -> list[dict]:
         start, end = _month_range(month)
         result = await self.session.execute(
             select(
@@ -133,9 +129,7 @@ class TransactionRepository(BaseRepository[Transaction]):
             for row in result.all()
         ]
 
-    async def get_cashflow(
-        self, owner_id: int, date_from: date, date_to: date
-    ) -> list[dict]:
+    async def get_cashflow(self, owner_id: int, date_from: date, date_to: date) -> list[dict]:
         result = await self.session.execute(
             select(
                 func.date(Transaction.date).label("period"),
@@ -202,9 +196,7 @@ class TransactionRepository(BaseRepository[Transaction]):
     ) -> Decimal:
         start, end = _month_range(month)
         result = await self.session.execute(
-            select(
-                func.coalesce(func.sum(Transaction.amount), Decimal("0"))
-            )
+            select(func.coalesce(func.sum(Transaction.amount), Decimal("0")))
             .join(Account, Transaction.account_id == Account.id)
             .where(
                 Account.owner_id == owner_id,

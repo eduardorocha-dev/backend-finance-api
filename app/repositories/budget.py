@@ -17,18 +17,14 @@ class BudgetRepository(BaseRepository[Budget]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(Budget, session)
 
-    async def get_all_by_owner(
-        self, owner_id: int, month: date | None = None
-    ) -> list[Budget]:
+    async def get_all_by_owner(self, owner_id: int, month: date | None = None) -> list[Budget]:
         stmt = select(Budget).where(Budget.owner_id == owner_id)
         if month is not None:
             stmt = stmt.where(Budget.month == month)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_by_id_and_owner(
-        self, budget_id: int, owner_id: int
-    ) -> Budget | None:
+    async def get_by_id_and_owner(self, budget_id: int, owner_id: int) -> Budget | None:
         result = await self.session.execute(
             select(Budget).where(
                 Budget.id == budget_id,
@@ -63,9 +59,7 @@ class BudgetRepository(BaseRepository[Budget]):
         spending_sq = (
             select(
                 Transaction.category_id,
-                func.coalesce(
-                    func.sum(Transaction.amount), Decimal("0")
-                ).label("spent"),
+                func.coalesce(func.sum(Transaction.amount), Decimal("0")).label("spent"),
             )
             .join(Account, Transaction.account_id == Account.id)
             .where(

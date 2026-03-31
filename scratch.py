@@ -40,9 +40,9 @@ def check(label: str, condition: bool) -> None:
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
+
 async def main() -> None:
     async with AsyncSessionLocal() as session:
-
         # ── Users ─────────────────────────────────────────────────────────────
         print("\n── UserRepository ──")
         user_repo = UserRepository(session)
@@ -125,7 +125,10 @@ async def main() -> None:
 
         filters_typed = TransactionFilter(type=TransactionType.EXPENSE)
         txs_typed = await tx_repo.get_all_by_owner(user.id, filters_typed)
-        check("get_all_by_owner (type filter)", all(t.type == TransactionType.EXPENSE for t in txs_typed))
+        check(
+            "get_all_by_owner (type filter)",
+            all(t.type == TransactionType.EXPENSE for t in txs_typed),
+        )
 
         tx_fetched = await tx_repo.get_by_id_and_owner(tx.id, user.id)
         check("get_by_id_and_owner", tx_fetched is not None)
@@ -138,7 +141,10 @@ async def main() -> None:
         month = date(2025, 3, 1)
 
         summary = await tx_repo.get_monthly_summary(user.id, month)
-        check("get_monthly_summary returns keys", "total_income" in summary and "total_expenses" in summary)
+        check(
+            "get_monthly_summary returns keys",
+            "total_income" in summary and "total_expenses" in summary,
+        )
         check("monthly expense = 120", summary["total_expenses"] == 120)
         check("monthly income = 0", summary["total_income"] == 0)
 
@@ -181,7 +187,9 @@ async def main() -> None:
         b = await budget_repo.get_by_id_and_owner(budget.id, user.id)
         check("get_by_id_and_owner", b is not None)
 
-        b_by_cat = await budget_repo.get_by_category_and_month(user.id, category.id, date(2025, 3, 1))
+        b_by_cat = await budget_repo.get_by_category_and_month(
+            user.id, category.id, date(2025, 3, 1)
+        )
         check("get_by_category_and_month", b_by_cat is not None)
 
         updated_b = await budget_repo.update(budget, limit_amount=600)

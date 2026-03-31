@@ -22,9 +22,7 @@ class BudgetCreate(BaseModel):
     @field_validator("month")
     def month_must_be_first_day(cls, v):
         if v.day != 1:
-            raise ValueError(
-                "Month must be the first day of the month, e.g. 2024-03-01"
-            )
+            raise ValueError("Month must be the first day of the month, e.g. 2024-03-01")
         return v
 
 

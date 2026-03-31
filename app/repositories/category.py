@@ -12,14 +12,10 @@ class CategoryRepository(BaseRepository[Category]):
         super().__init__(Category, session)
 
     async def get_all_by_owner(self, owner_id: int) -> list[Category]:
-        result = await self.session.execute(
-            select(Category).where(Category.owner_id == owner_id)
-        )
+        result = await self.session.execute(select(Category).where(Category.owner_id == owner_id))
         return list(result.scalars().all())
 
-    async def get_by_id_and_owner(
-        self, category_id: int, owner_id: int
-    ) -> Category | None:
+    async def get_by_id_and_owner(self, category_id: int, owner_id: int) -> Category | None:
         result = await self.session.execute(
             select(Category).where(
                 Category.id == category_id,

@@ -6,12 +6,13 @@ BASE = "/api/v1/budgets"
 
 @pytest.fixture
 async def auth_headers(client: AsyncClient) -> dict:
-    await client.post("/api/v1/auth/register", json={
-        "email": "user@example.com", "full_name": "Test User", "password": "secret123"
-    })
-    resp = await client.post("/api/v1/auth/login", json={
-        "email": "user@example.com", "password": "secret123"
-    })
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "user@example.com", "full_name": "Test User", "password": "secret123"},
+    )
+    resp = await client.post(
+        "/api/v1/auth/login", json={"email": "user@example.com", "password": "secret123"}
+    )
     return {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
 
@@ -23,16 +24,21 @@ async def category(client: AsyncClient, auth_headers: dict) -> dict:
 
 @pytest.fixture
 async def budget(client: AsyncClient, auth_headers: dict, category: dict) -> dict:
-    resp = await client.post(BASE, json={
-        "category_id": category["id"],
-        "limit_amount": "500.00",
-        "month": "2024-03-01",
-    }, headers=auth_headers)
+    resp = await client.post(
+        BASE,
+        json={
+            "category_id": category["id"],
+            "limit_amount": "500.00",
+            "month": "2024-03-01",
+        },
+        headers=auth_headers,
+    )
     assert resp.status_code == 201
     return resp.json()
 
 
 # ── List ──────────────────────────────────────────────────────────────────────
+
 
 async def test_list_budgets_empty(client: AsyncClient, auth_headers: dict):
     resp = await client.get(BASE, headers=auth_headers)
@@ -52,46 +58,66 @@ async def test_list_requires_auth(client: AsyncClient):
 
 # ── Create ────────────────────────────────────────────────────────────────────
 
+
 async def test_create_budget(client: AsyncClient, auth_headers: dict, category: dict):
-    resp = await client.post(BASE, json={
-        "category_id": category["id"],
-        "limit_amount": "200.00",
-        "month": "2024-04-01",
-    }, headers=auth_headers)
+    resp = await client.post(
+        BASE,
+        json={
+            "category_id": category["id"],
+            "limit_amount": "200.00",
+            "month": "2024-04-01",
+        },
+        headers=auth_headers,
+    )
     assert resp.status_code == 201
     data = resp.json()
     assert data["limit_amount"] == "200.00"
     assert data["month"] == "2024-04-01"
 
 
-async def test_create_budget_duplicate(client: AsyncClient, auth_headers: dict, category: dict, budget: dict):
-    resp = await client.post(BASE, json={
-        "category_id": category["id"],
-        "limit_amount": "300.00",
-        "month": "2024-03-01",
-    }, headers=auth_headers)
+async def test_create_budget_duplicate(
+    client: AsyncClient, auth_headers: dict, category: dict, budget: dict
+):
+    resp = await client.post(
+        BASE,
+        json={
+            "category_id": category["id"],
+            "limit_amount": "300.00",
+            "month": "2024-03-01",
+        },
+        headers=auth_headers,
+    )
     assert resp.status_code == 409
 
 
 async def test_create_budget_invalid_month(client: AsyncClient, auth_headers: dict, category: dict):
-    resp = await client.post(BASE, json={
-        "category_id": category["id"],
-        "limit_amount": "200.00",
-        "month": "2024-03-15",  # not the 1st
-    }, headers=auth_headers)
+    resp = await client.post(
+        BASE,
+        json={
+            "category_id": category["id"],
+            "limit_amount": "200.00",
+            "month": "2024-03-15",  # not the 1st
+        },
+        headers=auth_headers,
+    )
     assert resp.status_code == 422
 
 
 async def test_create_budget_unknown_category(client: AsyncClient, auth_headers: dict):
-    resp = await client.post(BASE, json={
-        "category_id": 9999,
-        "limit_amount": "200.00",
-        "month": "2024-04-01",
-    }, headers=auth_headers)
+    resp = await client.post(
+        BASE,
+        json={
+            "category_id": 9999,
+            "limit_amount": "200.00",
+            "month": "2024-04-01",
+        },
+        headers=auth_headers,
+    )
     assert resp.status_code == 404
 
 
 # ── Get ───────────────────────────────────────────────────────────────────────
+
 
 async def test_get_budget(client: AsyncClient, auth_headers: dict, budget: dict):
     resp = await client.get(f"{BASE}/{budget['id']}", headers=auth_headers)
@@ -105,13 +131,17 @@ async def test_get_budget_not_found(client: AsyncClient, auth_headers: dict):
 
 # ── Update ────────────────────────────────────────────────────────────────────
 
+
 async def test_update_budget(client: AsyncClient, auth_headers: dict, budget: dict):
-    resp = await client.patch(f"{BASE}/{budget['id']}", json={"limit_amount": "750.00"}, headers=auth_headers)
+    resp = await client.patch(
+        f"{BASE}/{budget['id']}", json={"limit_amount": "750.00"}, headers=auth_headers
+    )
     assert resp.status_code == 200
     assert resp.json()["limit_amount"] == "750.00"
 
 
 # ── Delete ────────────────────────────────────────────────────────────────────
+
 
 async def test_delete_budget(client: AsyncClient, auth_headers: dict, budget: dict):
     resp = await client.delete(f"{BASE}/{budget['id']}", headers=auth_headers)
@@ -120,6 +150,7 @@ async def test_delete_budget(client: AsyncClient, auth_headers: dict, budget: di
 
 
 # ── Usage ─────────────────────────────────────────────────────────────────────
+
 
 async def test_get_usage(client: AsyncClient, auth_headers: dict, budget: dict):
     resp = await client.get(f"{BASE}/usage", params={"month": "2024-03-01"}, headers=auth_headers)
