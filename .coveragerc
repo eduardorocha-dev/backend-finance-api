@@ -1,0 +1,12 @@
+[run]
+concurrency = greenlet,thread
+
+[report]
+omit =
+    # Celery tasks require a live worker process — not testable via HTTP client
+    app/workers/tasks.py
+    # Email and file generation require SMTP/filesystem — tested manually
+    app/utils/email.py
+    app/utils/export.py
+    # Sync session is only used inside Celery tasks
+    app/db/sync_session.py
