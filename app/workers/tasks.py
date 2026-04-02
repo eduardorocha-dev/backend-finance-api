@@ -5,8 +5,6 @@ from datetime import date, timedelta
 
 from sqlalchemy import select
 
-from app.workers.celery_app import celery_app
-
 # Import all models so SQLAlchemy can resolve relationships before any query runs
 import app.models.account  # noqa: F401
 import app.models.budget  # noqa: F401
@@ -14,19 +12,23 @@ import app.models.category  # noqa: F401
 import app.models.export  # noqa: F401
 import app.models.transaction  # noqa: F401
 import app.models.user  # noqa: F401
+from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _get_session():
     """Return a new synchronous DB session for use inside a task."""
     from app.db.sync_session import SyncSessionLocal
+
     return SyncSessionLocal()
 
 
 # ── Event-driven tasks ────────────────────────────────────────────────────────
+
 
 @celery_app.task(name="app.workers.tasks.send_budget_alert")
 def send_budget_alert(user_id: int, category_name: str, usage_pct: float) -> None:
@@ -47,7 +49,12 @@ def send_budget_alert(user_id: int, category_name: str, usage_pct: float) -> Non
         "— fintrack"
     )
     send_email(user.email, subject, body)
-    logger.info("Budget alert sent to user=%s category=%s usage=%.1f%%", user_id, category_name, usage_pct)
+    logger.info(
+        "Budget alert sent to user=%s category=%s usage=%.1f%%",
+        user_id,
+        category_name,
+        usage_pct,
+    )
 
 
 @celery_app.task(name="app.workers.tasks.generate_export", bind=True, max_retries=3)
@@ -95,6 +102,7 @@ def generate_export(self, export_job_id: int) -> None:
 
 # ── Scheduled tasks (Celery Beat) ─────────────────────────────────────────────
 
+
 @celery_app.task(name="app.workers.tasks.reset_monthly_budgets")
 def reset_monthly_budgets() -> None:
     """Carry over budgets from last month into the current month.
@@ -111,9 +119,9 @@ def reset_monthly_budgets() -> None:
     last_month = last_month_end.replace(day=1)
 
     with _get_session() as session:
-        last_month_budgets = session.execute(
-            select(Budget).where(Budget.month == last_month)
-        ).scalars().all()
+        last_month_budgets = (
+            session.execute(select(Budget).where(Budget.month == last_month)).scalars().all()
+        )
 
         created = 0
         for budget in last_month_budgets:
@@ -126,12 +134,14 @@ def reset_monthly_budgets() -> None:
             ).scalar_one_or_none()
 
             if existing is None:
-                session.add(Budget(
-                    owner_id=budget.owner_id,
-                    category_id=budget.category_id,
-                    limit_amount=budget.limit_amount,
-                    month=current_month,
-                ))
+                session.add(
+                    Budget(
+                        owner_id=budget.owner_id,
+                        category_id=budget.category_id,
+                        limit_amount=budget.limit_amount,
+                        month=current_month,
+                    )
+                )
                 created += 1
 
         session.commit()
@@ -150,22 +160,30 @@ def send_weekly_summaries() -> None:
     week_ago = today - timedelta(days=7)
 
     with _get_session() as session:
-        users = session.execute(
-            select(User).where(User.is_active == True)  # noqa: E712
-        ).scalars().all()
+        users = (
+            session.execute(
+                select(User).where(User.is_active == True)  # noqa: E712
+            )
+            .scalars()
+            .all()
+        )
 
         for user in users:
-            rows = session.execute(
-                select(Transaction)
-                .join(Account, Transaction.account_id == Account.id)
-                .where(
-                    Account.owner_id == user.id,
-                    Transaction.is_deleted == False,  # noqa: E712
-                    Transaction.date >= week_ago,
-                    Transaction.date <= today,
+            rows = (
+                session.execute(
+                    select(Transaction)
+                    .join(Account, Transaction.account_id == Account.id)
+                    .where(
+                        Account.owner_id == user.id,
+                        Transaction.is_deleted == False,  # noqa: E712
+                        Transaction.date >= week_ago,
+                        Transaction.date <= today,
+                    )
+                    .order_by(Transaction.date.desc())
                 )
-                .order_by(Transaction.date.desc())
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             if not rows:
                 continue
@@ -194,6 +212,7 @@ def send_weekly_summaries() -> None:
 def snapshot_balances() -> None:
     """Update balance_snapshot on every account with the current live balance."""
     from sqlalchemy import case, func
+
     from app.models.account import Account
     from app.models.transaction import Transaction, TransactionType
 

@@ -53,14 +53,16 @@ def generate_csv(session: Session, owner_id: int, date_from: date, date_to: date
     writer = csv.writer(buffer)
     writer.writerow(["date", "type", "amount", "description", "category", "account"])
     for row in rows:
-        writer.writerow([
-            row.date.strftime("%Y-%m-%d"),
-            row.type.value,
-            str(row.amount),
-            row.description or "",
-            row.category_name,
-            row.account_name,
-        ])
+        writer.writerow(
+            [
+                row.date.strftime("%Y-%m-%d"),
+                row.type.value,
+                str(row.amount),
+                row.description or "",
+                row.category_name,
+                row.account_name,
+            ]
+        )
 
     _ensure_exports_dir()
     filename = f"export_{uuid.uuid4().hex}.csv"
