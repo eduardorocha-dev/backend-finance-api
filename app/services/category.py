@@ -40,7 +40,7 @@ class CategoryService:
         if data.parent_id is not None:
             if data.parent_id == category_id:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="A category cannot be its own parent",
                 )
             parent = await self.repo.get_by_id_and_owner(data.parent_id, user_id)

@@ -15,7 +15,7 @@ class ExportService:
     async def create(self, user_id: int, data: ExportCreate) -> ExportJob:
         if data.date_from > data.date_to:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="date_from must be before date_to",
             )
 
