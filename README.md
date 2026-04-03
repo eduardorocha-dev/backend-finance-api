@@ -3,10 +3,10 @@
 > A production-grade personal finance tracker REST API built with **FastAPI**, **PostgreSQL**, **Redis**, and **Celery**. Designed as a backend engineering portfolio project showcasing async architecture, domain modeling, scheduled background jobs, and complex SQL aggregations.
 
 ![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=flat-square&logo=fastapi&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.135.1-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis&logoColor=white)
-![Celery](https://img.shields.io/badge/Celery-5.4-37814A?style=flat-square&logo=celery&logoColor=white)
+![Celery](https://img.shields.io/badge/Celery-5.6.3-37814A?style=flat-square&logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
@@ -47,12 +47,12 @@
 
 | Layer | Tool | Version |
 |---|---|---|
-| Web Framework | FastAPI | 0.111 |
+| Web Framework | FastAPI | 0.135.1 |
 | ORM | SQLAlchemy (async) | 2.0 |
-| Migrations | Alembic | 1.13 |
+| Migrations | Alembic | 1.13.3 |
 | Database | PostgreSQL | 16 |
 | Cache / Broker | Redis | 7 |
-| Task Queue | Celery + Celery Beat | 5.4 |
+| Task Queue | Celery + Celery Beat | 5.6.3 |
 | Auth | python-jose + passlib | — |
 | Config | Pydantic Settings | 2.x |
 | Email | FastAPI-Mail | 1.4 |
@@ -159,7 +159,7 @@ fintrack-api/
 ├── Dockerfile
 ├── requirements.txt
 ├── pytest.ini
-├── .env.example
+├── .coveragerc
 └── README.md
 ```
 
@@ -196,14 +196,12 @@ pip install -r requirements.txt
 
 ### 4. Configure environment variables
 
-```bash
-cp .env.example .env
-```
+Create a `.env` file in the project root and populate it with the variables listed in the [Environment Variables](#-environment-variables) section below.
 
-Generate a secret key and update `.env`:
+Generate a secret key and set it as `SECRET_KEY`:
 
 ```bash
-openssl rand -hex 32   # copy this value into SECRET_KEY
+openssl rand -hex 32
 ```
 
 ### 5. Start infrastructure (PostgreSQL + Redis)
@@ -262,9 +260,10 @@ celery -A app.workers.celery_app beat --loglevel=info
 | `MAIL_USERNAME` | SMTP username / email | — |
 | `MAIL_PASSWORD` | SMTP password or app password | — |
 | `AWS_ACCESS_KEY_ID` | S3 key for file uploads (optional) | — |
+| `AWS_SECRET_ACCESS_KEY` | S3 secret key for file uploads (optional) | — |
 | `AWS_BUCKET_NAME` | S3 bucket name for exports (optional) | — |
 
-See [`.env.example`](.env.example) for the full list.
+See `app/core/config.py` for the full list of settings and their defaults.
 
 ---
 
@@ -277,6 +276,8 @@ Full interactive documentation is available at `/docs` when the server is runnin
 ```http
 POST /api/v1/auth/register
 POST /api/v1/auth/login
+POST /api/v1/auth/refresh
+GET  /api/v1/auth/me
 ```
 
 ### Accounts
@@ -293,7 +294,7 @@ GET    /api/v1/accounts/{id}/balance
 ### Transactions
 
 ```http
-GET    /api/v1/transactions?workspace_id=&status=&category_id=
+GET    /api/v1/transactions?account_id=&category_id=&type=&date_from=&date_to=
 POST   /api/v1/transactions
 GET    /api/v1/transactions/{id}
 PATCH  /api/v1/transactions/{id}
@@ -303,9 +304,12 @@ DELETE /api/v1/transactions/{id}
 ### Budgets
 
 ```http
-GET  /api/v1/budgets
-POST /api/v1/budgets
-GET  /api/v1/budgets/usage        # spend % per category this month
+GET    /api/v1/budgets
+POST   /api/v1/budgets
+GET    /api/v1/budgets/usage        # spend % per category this month
+GET    /api/v1/budgets/{id}
+PATCH  /api/v1/budgets/{id}
+DELETE /api/v1/budgets/{id}
 ```
 
 ### Reports
@@ -361,7 +365,7 @@ pytest --cov=app --cov-report=html
 open htmlcov/index.html
 ```
 
-Tests use an in-memory SQLite database and override FastAPI's `get_db` dependency — no running PostgreSQL required.
+Tests use a dedicated PostgreSQL database (`fintrack_test` on port 5433) spun up via Docker Compose. Make sure the test database container is running before executing the test suite.
 
 ---
 
