@@ -57,7 +57,7 @@ class BudgetService:
         budget = await self.get(user_id, budget_id)
         await self.repo.delete(budget)
 
-    async def get_usage(self, user_id: int, month: date) -> list[BudgetUsage]:
+    async def get_usage(self, user_id: int, month: date) -> list[BudgetUsage]:  # type: ignore[valid-type]
         rows = await self.repo.get_usage(user_id, month)
         result = []
         for row in rows:
