@@ -100,9 +100,9 @@ def generate_pdf(session: Session, owner_id: int, date_from: date, date_to: date
     """
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib.units import cm
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-    from reportlab.lib.styles import getSampleStyleSheet
 
     rows = session.execute(
         select(
@@ -132,7 +132,7 @@ def generate_pdf(session: Session, owner_id: int, date_from: date, date_to: date
     doc = SimpleDocTemplate(filepath, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm)
 
     elements = []
-    elements.append(Paragraph(f"Transaction Report", styles["Title"]))
+    elements.append(Paragraph("Transaction Report", styles["Title"]))
     elements.append(Paragraph(f"{date_from} — {date_to}", styles["Normal"]))
     elements.append(Spacer(1, 0.5 * cm))
 
