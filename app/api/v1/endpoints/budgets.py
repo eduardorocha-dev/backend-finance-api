@@ -17,7 +17,7 @@ router = APIRouter(prefix="/budgets", tags=["Budgets"])
 async def list_budgets(
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
-    month: date | None = Query(None, examples="2024-03-01"),
+    month: date | None = Query(None, examples=["2024-03-01"]),
 ):
     return await BudgetService(session).list(current_user.id, month)
 
@@ -37,7 +37,7 @@ async def create_budget(
 async def get_usage(
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
-    month: date = Query(..., examples="2024-03-01"),
+    month: date = Query(..., examples=["2024-03-01"]),
 ):
     return await BudgetService(session).get_usage(current_user.id, month)
 

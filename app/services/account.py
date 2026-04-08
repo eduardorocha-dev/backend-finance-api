@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.account import Account
 from app.repositories.account import AccountRepository
 from app.repositories.transaction import TransactionRepository
-from app.schemas.account import AccountCreate, AccountUpdate, BalanceResponse
+from app.schemas.account import AccountCreate, AccountUpdate, BalanceResponse, CurrencyCode
 
 
 class AccountService:
@@ -48,6 +48,6 @@ class AccountService:
         return BalanceResponse(
             account_id=account.id,
             account_name=account.name,
-            currency=account.currency,
+            currency=CurrencyCode(account.currency.value),
             balance=balance,
         )

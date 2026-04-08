@@ -247,6 +247,63 @@ celery -A app.workers.celery_app beat --loglevel=info
 
 ---
 
+## 🛠 Makefile Reference
+
+All common tasks are available via `make`. Run `make <command>` from the project root.
+
+### Setup
+
+| Command | Description |
+|---|---|
+| `make install` | Create `.venv` and install all dependencies |
+| `make setup` | First-time setup: install + start infra + run migrations |
+
+### Docker
+
+| Command | Description |
+|---|---|
+| `make up` | Start infrastructure only (PostgreSQL + Redis) |
+| `make down` | Stop and remove all containers |
+| `make start` | Start all services in background, including API and Celery workers |
+| `make logs` | Stream logs from all containers |
+| `make logs-api` | Stream logs from the API container only |
+| `make logs-worker` | Stream logs from the Celery worker container only |
+
+### Database
+
+| Command | Description |
+|---|---|
+| `make migrate` | Apply all pending Alembic migrations |
+| `make migration name=<desc>` | Auto-generate a new migration from model changes |
+| `make db-reset` | Wipe and recreate the database from scratch |
+
+### Tests & Coverage
+
+| Command | Description |
+|---|---|
+| `make test` | Run test suite locally using `.venv` |
+| `make test-full` | Start infra, wait for readiness, then run coverage locally |
+| `make coverage` | Run tests with coverage report (opens HTML report in browser) |
+| `make coverage-docker` | Run tests with coverage report inside a Docker container |
+
+### Code Quality
+
+| Command | Description |
+|---|---|
+| `make lint` | Check code style with Ruff |
+| `make format` | Auto-format code with Ruff |
+| `make typecheck` | Run static type checking with mypy |
+| `make check` | Run lint + typecheck + tests in sequence |
+| `make ci` | Full CI pipeline: start infra + lint + typecheck + coverage |
+
+### Development
+
+| Command | Description |
+|---|---|
+| `make dev` | Start infra + run migrations + start local Uvicorn server with hot-reload |
+
+---
+
 ## 🔑 Environment Variables
 
 | Variable | Description | Default |
