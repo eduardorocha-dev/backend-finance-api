@@ -53,7 +53,9 @@ async def test_create_rate(client: AsyncClient, auth_headers: dict):
     assert float(data["rate"]) == pytest.approx(0.92, rel=1e-4)
 
 
-async def test_create_rate_duplicate_returns_409(client: AsyncClient, auth_headers: dict, rate: dict):
+async def test_create_rate_duplicate_returns_409(
+    client: AsyncClient, auth_headers: dict, rate: dict
+):
     resp = await client.post(
         BASE,
         json={
@@ -128,11 +130,16 @@ async def test_get_latest(client: AsyncClient, auth_headers: dict):
     for date, rate_val in [("2024-01-01", "5.70"), ("2024-02-01", "5.85")]:
         await client.post(
             BASE,
-            json={"from_currency": "USD", "to_currency": "BRL", "rate": rate_val, "effective_date": date},
+            json={
+                "from_currency": "USD", "to_currency": "BRL",
+                "rate": rate_val, "effective_date": date,
+            },
             headers=auth_headers,
         )
     resp = await client.get(
-        f"{BASE}/latest", params={"from_currency": "USD", "to_currency": "BRL"}, headers=auth_headers
+        f"{BASE}/latest",
+        params={"from_currency": "USD", "to_currency": "BRL"},
+        headers=auth_headers,
     )
     assert resp.status_code == 200
     assert float(resp.json()["rate"]) == pytest.approx(5.85, rel=1e-4)
@@ -140,7 +147,9 @@ async def test_get_latest(client: AsyncClient, auth_headers: dict):
 
 async def test_get_latest_not_found(client: AsyncClient, auth_headers: dict):
     resp = await client.get(
-        f"{BASE}/latest", params={"from_currency": "GBP", "to_currency": "EUR"}, headers=auth_headers
+        f"{BASE}/latest",
+        params={"from_currency": "GBP", "to_currency": "EUR"},
+        headers=auth_headers,
     )
     assert resp.status_code == 404
 
@@ -152,7 +161,10 @@ async def test_list_for_pair(client: AsyncClient, auth_headers: dict):
     for date in ["2024-01-01", "2024-02-01", "2024-03-01"]:
         await client.post(
             BASE,
-            json={"from_currency": "USD", "to_currency": "EUR", "rate": "0.92", "effective_date": date},
+            json={
+                "from_currency": "USD", "to_currency": "EUR",
+                "rate": "0.92", "effective_date": date,
+            },
             headers=auth_headers,
         )
     resp = await client.get(

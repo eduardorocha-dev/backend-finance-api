@@ -37,7 +37,9 @@ async def category_id(client: AsyncClient, auth_headers: dict) -> int:
 
 
 @pytest.fixture
-async def recurring(client: AsyncClient, auth_headers: dict, account_id: int, category_id: int) -> dict:
+async def recurring(
+    client: AsyncClient, auth_headers: dict, account_id: int, category_id: int
+) -> dict:
     resp = await client.post(
         BASE,
         json={
