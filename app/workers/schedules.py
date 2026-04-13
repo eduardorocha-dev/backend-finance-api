@@ -18,4 +18,9 @@ BEAT_SCHEDULE = {
         "task": "app.workers.tasks.snapshot_balances",
         "schedule": crontab(hour=23, minute=59),
     },
+    # Fires due recurring transaction templates — every day at 00:05
+    "process-recurring-transactions": {
+        "task": "app.workers.tasks.process_recurring_transactions",
+        "schedule": crontab(hour=0, minute=5),
+    },
 }

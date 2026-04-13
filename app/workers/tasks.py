@@ -9,7 +9,9 @@ from sqlalchemy import select
 import app.models.account  # noqa: F401
 import app.models.budget  # noqa: F401
 import app.models.category  # noqa: F401
+import app.models.exchange_rate  # noqa: F401
 import app.models.export  # noqa: F401
+import app.models.recurring_transaction  # noqa: F401
 import app.models.transaction  # noqa: F401
 import app.models.user  # noqa: F401
 from app.workers.celery_app import celery_app
@@ -243,3 +245,63 @@ def snapshot_balances() -> None:
 
         session.commit()
     logger.info("snapshot_balances: updated %d accounts", updated)
+
+
+@celery_app.task(name="app.workers.tasks.process_recurring_transactions")
+def process_recurring_transactions() -> None:
+    """Create transactions for every active recurring template that is due today or overdue.
+
+    After creating the transaction, the template's next_due_date is advanced by
+    one frequency period so it will fire again at the correct time.
+    """
+    from datetime import date, timedelta
+
+    from dateutil.relativedelta import relativedelta
+
+    from app.models.recurring_transaction import RecurringFrequency, RecurringTransaction
+    from app.models.transaction import Transaction
+
+    today = date.today()
+
+    def _advance(rt: RecurringTransaction) -> date:
+        if rt.frequency == RecurringFrequency.DAILY:
+            return rt.next_due_date + timedelta(days=1)
+        if rt.frequency == RecurringFrequency.WEEKLY:
+            return rt.next_due_date + timedelta(weeks=1)
+        if rt.frequency == RecurringFrequency.MONTHLY:
+            return rt.next_due_date + relativedelta(months=1)
+        return rt.next_due_date + relativedelta(years=1)
+
+    with _get_session() as session:
+        due = (
+            session.execute(
+                select(RecurringTransaction).where(
+                    RecurringTransaction.is_active == True,  # noqa: E712
+                    RecurringTransaction.next_due_date <= today,
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        created = 0
+        for rt in due:
+            from datetime import datetime, timezone
+
+            session.add(
+                Transaction(
+                    account_id=rt.account_id,
+                    category_id=rt.category_id,
+                    type=rt.type,
+                    amount=rt.amount,
+                    description=rt.description,
+                    date=datetime.combine(rt.next_due_date, datetime.min.time()).replace(
+                        tzinfo=timezone.utc
+                    ),
+                )
+            )
+            rt.next_due_date = _advance(rt)
+            created += 1
+
+        session.commit()
+    logger.info("process_recurring_transactions: created %d transactions for %s", created, today)
