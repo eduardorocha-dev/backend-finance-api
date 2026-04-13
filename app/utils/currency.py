@@ -23,3 +23,8 @@ def add(a: Decimal, b: Decimal) -> Decimal:
 
 def subtract(a: Decimal, b: Decimal) -> Decimal:
     return (a - b).quantize(_CENT, rounding=ROUND_HALF_UP)
+
+
+def convert(amount: Decimal, rate: Decimal) -> Decimal:
+    """Multiply *amount* by *rate* and round to 2 decimal places."""
+    return (amount * rate).quantize(_CENT, rounding=ROUND_HALF_UP)

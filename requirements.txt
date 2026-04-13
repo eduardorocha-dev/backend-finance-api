@@ -30,3 +30,5 @@ uvicorn==0.41.0
 reportlab==4.4.1
 boto3==1.38.0
 mypy==1.16.0
+python-dateutil==2.9.0.post0
+types-python-dateutil==2.9.0.20241206
