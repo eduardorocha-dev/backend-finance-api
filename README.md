@@ -106,7 +106,7 @@ API Request → Celery Task → Redis Broker → Worker → Email / File / Notif
 ## 📁 Project Structure
 
 ```
-fintrack-api/
+backend-finance-api/
 ├── app/
 │   ├── api/
 │   │   └── v1/
@@ -462,4 +462,4 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ---
 
-<p align="center">Built as a backend engineering portfolio project — <a href="https://github.com/eduardorocha-dev">@eduardorcha-dev</a></p>
+<p align="center">Built as a backend engineering portfolio project — <a href="https://github.com/eduardorocha-dev">@eduardorocha-dev</a></p>
