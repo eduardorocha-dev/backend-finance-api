@@ -1,30 +1,44 @@
-.PHONY: install setup up down start logs logs-api logs-worker \
+.PHONY: doctor install env setup up down start logs logs-api logs-worker \
         migrate migration db-reset \
         test test-full coverage coverage-docker \
-        lint format typecheck check ci dev
+        lint format typecheck check ci dev worker beat
+
+PYTHON ?= python3.12
+OPEN := $(if $(filter Darwin,$(shell uname -s)),open,xdg-open)
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
+doctor:
+	@ok=1; \
+	command -v $(PYTHON) > /dev/null || { echo "✗ $(PYTHON) not found (install Python 3.12, e.g. 'uv python install 3.12')"; ok=0; }; \
+	command -v docker > /dev/null || { echo "✗ docker not found (install Docker Desktop, OrbStack or Colima)"; ok=0; }; \
+	docker info > /dev/null 2>&1 || { echo "✗ docker daemon is not running"; ok=0; }; \
+	docker compose version > /dev/null 2>&1 || { echo "✗ docker compose plugin not found"; ok=0; }; \
+	[ $$ok = 1 ] && echo "✓ All prerequisites found" || exit 1
+
 install:
-	python -m venv .venv
+	$(PYTHON) -m venv .venv
+	.venv/bin/pip install --upgrade pip
 	.venv/bin/pip install -r requirements.txt
 
-setup: install up
-	@echo "Waiting for db to be healthy..."
-	@until docker compose exec db pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
-	$(MAKE) migrate
+env:
+	@if [ -f .env ]; then echo ".env already exists, leaving it alone"; \
+	else sed "s/^SECRET_KEY=$$/SECRET_KEY=$$(openssl rand -hex 32)/" .env.example > .env; \
+	echo "Created .env with a generated SECRET_KEY"; fi
+
+setup: doctor install env up migrate
 	@echo "Setup complete. Run 'make dev' to start the server."
 
 # ── Docker ────────────────────────────────────────────────────────────────────
 
-up:
-	docker compose up -d db db_test redis
+up: env
+	docker compose up -d --wait db db_test redis
 
 down:
 	docker compose down
 
-start:
-	docker compose up -d
+start: env
+	docker compose up -d --build
 	@echo "API running at http://localhost:8000"
 
 logs:
@@ -57,13 +71,11 @@ test:
 	.venv/bin/pytest -v
 
 test-full: up
-	@echo "Waiting for db_test to be healthy..."
-	@until docker compose exec db_test pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
 	$(MAKE) coverage
 
 coverage:
 	.venv/bin/pytest --cov=app --cov-report=term-missing --cov-report=html
-	xdg-open htmlcov/index.html
+	-$(OPEN) htmlcov/index.html
 
 coverage-docker:
 	docker compose run --rm api pytest --cov=app --cov-report=term-missing
@@ -82,8 +94,6 @@ typecheck:
 check: lint typecheck test
 
 ci: up
-	@echo "Waiting for db_test to be healthy..."
-	@until docker compose exec db_test pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
 	$(MAKE) lint
 	$(MAKE) typecheck
 	$(MAKE) coverage
@@ -93,3 +103,9 @@ ci: up
 
 dev: up migrate
 	.venv/bin/uvicorn app.main:app --reload
+
+worker:
+	.venv/bin/celery -A app.workers.celery_app worker --loglevel=info
+
+beat:
+	.venv/bin/celery -A app.workers.celery_app beat --loglevel=info

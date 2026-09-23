@@ -169,75 +169,45 @@ backend-finance-api/
 
 ### Prerequisites
 
-- [Python 3.12+](https://www.python.org/downloads/)
-- [Docker + Docker Compose](https://docs.docker.com/get-docker/)
+- [Python 3.12](https://www.python.org/downloads/) — on macOS the simplest route is
+  [uv](https://docs.astral.sh/uv/): `curl -LsSf https://astral.sh/uv/install.sh | sh && uv python install 3.12`
+- A Docker runtime with Compose v2 — [Docker Desktop](https://docs.docker.com/get-docker/),
+  [OrbStack](https://orbstack.dev/) or [Colima](https://github.com/abiosoft/colima)
 - [Git](https://git-scm.com/)
 
-### 1. Clone the repository
+Run `make doctor` to check that everything is in place.
+
+### Quick start
 
 ```bash
 git clone https://github.com/eduardorocha-dev/backend-finance-api
-cd fintrack-api
+cd backend-finance-api
+make setup   # checks prerequisites, creates .venv, creates .env, starts Postgres + Redis, runs migrations
+make dev     # API with hot-reload at http://localhost:8000
 ```
 
-### 2. Create and activate a virtual environment
+Background jobs (exports, emails, scheduled tasks) need Celery. Run each in its own terminal:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate        # macOS/Linux
-# .venv\Scripts\activate         # Windows
+make worker  # Celery worker
+make beat    # Celery Beat scheduler
 ```
 
-### 3. Install dependencies
+Run the tests with `make test`. They use the `db_test` container on port 5433, which `make setup` already started.
 
-```bash
-pip install -r requirements.txt
-```
+To run everything in containers instead (API, worker and beat included), use `make start`. Don't run it at
+the same time as `make dev`, because both use port 8000.
 
-### 4. Configure environment variables
+### Manual setup
 
-Create a `.env` file in the project root and populate it with the variables listed in the [Environment Variables](#-environment-variables) section below.
+`make setup` runs these steps:
 
-Generate a secret key and set it as `SECRET_KEY`:
+1. `python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt`
+2. `cp .env.example .env`, then set `SECRET_KEY` to the output of `openssl rand -hex 32`
+3. `docker compose up -d --wait db db_test redis` (infrastructure only)
+4. `.venv/bin/alembic upgrade head`
 
-```bash
-openssl rand -hex 32
-```
-
-### 5. Start infrastructure (PostgreSQL + Redis)
-
-```bash
-docker compose up -d
-```
-
-Verify containers are running:
-
-```bash
-docker compose ps
-```
-
-### 6. Run database migrations
-
-```bash
-alembic upgrade head
-```
-
-### 7. Start all services
-
-Open three terminal tabs:
-
-```bash
-# Tab 1 — API server
-uvicorn app.main:app --reload
-
-# Tab 2 — Celery worker
-celery -A app.workers.celery_app worker --loglevel=info
-
-# Tab 3 — Celery Beat scheduler
-celery -A app.workers.celery_app beat --loglevel=info
-```
-
-### 8. Verify
+### Verify
 
 | URL | Description |
 |---|---|
@@ -255,8 +225,10 @@ All common tasks are available via `make`. Run `make <command>` from the project
 
 | Command | Description |
 |---|---|
+| `make doctor` | Check that Python 3.12 and Docker are installed and running |
 | `make install` | Create `.venv` and install all dependencies |
-| `make setup` | First-time setup: install + start infra + run migrations |
+| `make env` | Create `.env` from `.env.example` with a generated `SECRET_KEY` |
+| `make setup` | First-time setup: doctor + install + env + start infra + run migrations |
 
 ### Docker
 
@@ -301,6 +273,8 @@ All common tasks are available via `make`. Run `make <command>` from the project
 | Command | Description |
 |---|---|
 | `make dev` | Start infra + run migrations + start local Uvicorn server with hot-reload |
+| `make worker` | Run the Celery worker locally |
+| `make beat` | Run the Celery Beat scheduler locally |
 
 ---
 
