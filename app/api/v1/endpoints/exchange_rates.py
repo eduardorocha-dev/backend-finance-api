@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_admin, get_current_user
 from app.db.session import get_db
 from app.models.account import CurrencyCode
 from app.models.user import User
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/exchange-rates", tags=["Exchange Rates"])
 @router.post("", response_model=ExchangeRateRead, status_code=status.HTTP_201_CREATED)
 async def create_exchange_rate(
     data: ExchangeRateCreate,
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_admin)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ):
     er = await ExchangeRateService(session).create(data)
@@ -64,7 +64,7 @@ async def get_exchange_rate(
 async def update_exchange_rate(
     exchange_rate_id: int,
     data: ExchangeRateUpdate,
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_admin)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ):
     er = await ExchangeRateService(session).update(exchange_rate_id, data)
@@ -75,7 +75,7 @@ async def update_exchange_rate(
 @router.delete("/{exchange_rate_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_exchange_rate(
     exchange_rate_id: int,
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_current_admin)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ):
     await ExchangeRateService(session).delete(exchange_rate_id)

@@ -1,19 +1,36 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import text
+
+from tests.conftest import engine_test
 
 BASE = "/api/v1/exchange-rates"
 
 
-@pytest.fixture
-async def auth_headers(client: AsyncClient) -> dict:
+async def _login(client: AsyncClient, email: str) -> dict:
     await client.post(
         "/api/v1/auth/register",
-        json={"email": "er@example.com", "full_name": "ER User", "password": "secret123"},
+        json={"email": email, "full_name": "ER User", "password": "secret123"},
     )
-    resp = await client.post(
-        "/api/v1/auth/login", json={"email": "er@example.com", "password": "secret123"}
-    )
+    resp = await client.post("/api/v1/auth/login", json={"email": email, "password": "secret123"})
     return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+
+@pytest.fixture
+async def auth_headers(client: AsyncClient) -> dict:
+    """An admin: only admins may create, update or delete the shared rates."""
+    headers = await _login(client, "admin@example.com")
+    async with engine_test.begin() as conn:
+        await conn.execute(
+            text("UPDATE users SET is_admin = true WHERE email = 'admin@example.com'")
+        )
+    return headers
+
+
+@pytest.fixture
+async def user_headers(client: AsyncClient) -> dict:
+    """A regular user: may read rates and convert, but not change them."""
+    return await _login(client, "user@example.com")
 
 
 @pytest.fixture
@@ -131,8 +148,10 @@ async def test_get_latest(client: AsyncClient, auth_headers: dict):
         await client.post(
             BASE,
             json={
-                "from_currency": "USD", "to_currency": "BRL",
-                "rate": rate_val, "effective_date": date,
+                "from_currency": "USD",
+                "to_currency": "BRL",
+                "rate": rate_val,
+                "effective_date": date,
             },
             headers=auth_headers,
         )
@@ -162,8 +181,10 @@ async def test_list_for_pair(client: AsyncClient, auth_headers: dict):
         await client.post(
             BASE,
             json={
-                "from_currency": "USD", "to_currency": "EUR",
-                "rate": "0.92", "effective_date": date,
+                "from_currency": "USD",
+                "to_currency": "EUR",
+                "rate": "0.92",
+                "effective_date": date,
             },
             headers=auth_headers,
         )
@@ -178,9 +199,7 @@ async def test_list_for_pair(client: AsyncClient, auth_headers: dict):
 
 
 async def test_update_rate(client: AsyncClient, auth_headers: dict, rate: dict):
-    resp = await client.patch(
-        f"{BASE}/{rate['id']}", json={"rate": "6.00"}, headers=auth_headers
-    )
+    resp = await client.patch(f"{BASE}/{rate['id']}", json={"rate": "6.00"}, headers=auth_headers)
     assert resp.status_code == 200
     assert float(resp.json()["rate"]) == pytest.approx(6.0, rel=1e-4)
 
@@ -228,3 +247,51 @@ async def test_convert_no_rate_returns_404(client: AsyncClient, auth_headers: di
         headers=auth_headers,
     )
     assert resp.status_code == 404
+
+
+# ── Permissions: rates are shared, so only admins may change them ─────────────
+
+
+async def test_regular_user_cannot_create_rate(client: AsyncClient, user_headers: dict):
+    resp = await client.post(
+        BASE,
+        json={
+            "from_currency": "USD",
+            "to_currency": "EUR",
+            "rate": "0.920000",
+            "effective_date": "2024-01-15",
+        },
+        headers=user_headers,
+    )
+    assert resp.status_code == 403
+
+
+async def test_regular_user_cannot_update_rate(client: AsyncClient, user_headers: dict, rate: dict):
+    resp = await client.patch(f"{BASE}/{rate['id']}", json={"rate": "1.0"}, headers=user_headers)
+    assert resp.status_code == 403
+
+
+async def test_regular_user_cannot_delete_rate(client: AsyncClient, user_headers: dict, rate: dict):
+    resp = await client.delete(f"{BASE}/{rate['id']}", headers=user_headers)
+    assert resp.status_code == 403
+
+
+async def test_regular_user_can_read_and_convert(
+    client: AsyncClient, user_headers: dict, rate: dict
+):
+    pair = {"from_currency": "USD", "to_currency": "BRL"}
+    assert (await client.get(BASE, params=pair, headers=user_headers)).status_code == 200
+    assert (
+        await client.get(f"{BASE}/latest", params=pair, headers=user_headers)
+    ).status_code == 200
+    assert (await client.get(f"{BASE}/{rate['id']}", headers=user_headers)).status_code == 200
+    resp = await client.post(
+        f"{BASE}/convert", json={**pair, "amount": "10.00"}, headers=user_headers
+    )
+    assert resp.status_code == 200
+
+
+async def test_me_reports_admin_flag(client: AsyncClient, auth_headers: dict, user_headers: dict):
+    me = "/api/v1/auth/me"
+    assert (await client.get(me, headers=auth_headers)).json()["is_admin"] is True
+    assert (await client.get(me, headers=user_headers)).json()["is_admin"] is False
