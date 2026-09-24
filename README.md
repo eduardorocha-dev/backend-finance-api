@@ -37,7 +37,7 @@
 - 📈 **Financial reports** — monthly summaries, category breakdowns, and daily cash flow with a running total (PostgreSQL CTE + window function)
 - 📤 **Async exports** — request CSV or PDF exports that are generated in the background and delivered via email
 - ⏰ **Scheduled jobs** — monthly budget carry-over, weekly summary emails, recurring transactions, and daily balance snapshots via Celery Beat
-- 🔔 **Budget alerts** — automatic notifications when spending reaches 80% of a monthly budget
+- 🔔 **Budget alerts** — one email per budget when spending reaches 80% of the monthly limit (again if the limit changes)
 - 🐳 **Fully containerized** — Docker Compose setup for one-command local development
 - ✅ **80%+ test coverage** — pytest with async support and factory-based test data
 
@@ -406,7 +406,7 @@ DELETE /api/v1/recurring-transactions/{id}
 
 | Task | Trigger | Description |
 |---|---|---|
-| `send_budget_alert` | Transaction creation | Fires when a category reaches 80% of its monthly budget |
+| `send_budget_alert` | An expense is created, moved to another category/month, or created by a recurring template | Emails the user once when a category reaches 80% of its monthly budget; changing the limit re-arms it |
 | `generate_export` | `POST /exports` | Generates CSV or PDF file asynchronously |
 
 ### Scheduled (Celery Beat)

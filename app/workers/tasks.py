@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date, timedelta
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import select
 
@@ -16,6 +17,9 @@ import app.models.transaction  # noqa: F401
 import app.models.user  # noqa: F401
 from app.workers.celery_app import celery_app
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +31,65 @@ def _get_session():
     from app.db.sync_session import SyncSessionLocal
 
     return SyncSessionLocal()
+
+
+def _claim_budget_alert(
+    session: Session, owner_id: int, category_id: int, month: date
+) -> tuple[str, float] | None:
+    """Sync counterpart of TransactionService._check_budget_alert for worker-created expenses.
+
+    If the category's budget for `month` is at or past the threshold and its alert
+    hasn't been sent, marks it sent and returns (category_name, usage_pct) for the
+    caller to dispatch after committing. Returns None otherwise.
+    """
+    from sqlalchemy import CursorResult, func, update
+
+    from app.models.account import Account
+    from app.models.budget import ALERT_THRESHOLD, Budget
+    from app.models.category import Category
+    from app.models.transaction import Transaction, TransactionType
+    from app.repositories.base import _month_range
+
+    budget = session.execute(
+        select(Budget).where(
+            Budget.owner_id == owner_id,
+            Budget.category_id == category_id,
+            Budget.month == month,
+        )
+    ).scalar_one_or_none()
+    if budget is None or budget.alert_sent_at is not None or not budget.limit_amount:
+        return None
+
+    start, end = _month_range(month)
+    spent = session.execute(
+        select(func.coalesce(func.sum(Transaction.amount), 0))
+        .join(Account, Transaction.account_id == Account.id)
+        .where(
+            Account.owner_id == owner_id,
+            Transaction.category_id == category_id,
+            Transaction.is_deleted == False,  # noqa: E712
+            Transaction.type == TransactionType.EXPENSE,
+            Transaction.date >= start,
+            Transaction.date < end,
+        )
+    ).scalar_one()
+    usage_pct = float(spent / budget.limit_amount)
+    if usage_pct < ALERT_THRESHOLD:
+        return None
+
+    claimed = cast(
+        CursorResult,
+        session.execute(
+            update(Budget)
+            .where(Budget.id == budget.id, Budget.alert_sent_at.is_(None))
+            .values(alert_sent_at=func.now())
+        ),
+    )
+    if claimed.rowcount != 1:  # another request sent it first
+        return None
+    category = session.get(Category, category_id)
+    category_name = category.name if category is not None else "Unknown category"
+    return category_name, round(usage_pct * 100, 1)
 
 
 # ── Event-driven tasks ────────────────────────────────────────────────────────
@@ -259,7 +322,7 @@ def process_recurring_transactions() -> None:
     from dateutil.relativedelta import relativedelta
 
     from app.models.recurring_transaction import RecurringFrequency, RecurringTransaction
-    from app.models.transaction import Transaction
+    from app.models.transaction import Transaction, TransactionType
 
     today = date.today()
 
@@ -285,6 +348,7 @@ def process_recurring_transactions() -> None:
         )
 
         created = 0
+        alerts: list[tuple[int, str, float]] = []
         for rt in due:
             from datetime import datetime, timezone
 
@@ -300,8 +364,19 @@ def process_recurring_transactions() -> None:
                     ),
                 )
             )
+            if rt.type == TransactionType.EXPENSE:
+                session.flush()  # so the new expense counts towards the budget
+                alert = _claim_budget_alert(
+                    session, rt.owner_id, rt.category_id, rt.next_due_date.replace(day=1)
+                )
+                if alert is not None:
+                    alerts.append((rt.owner_id, *alert))
             rt.next_due_date = _advance(rt)
             created += 1
 
         session.commit()
+
+    # Dispatch only after the commit, so an alert is never sent for rolled-back data.
+    for owner_id, category_name, usage_pct in alerts:
+        send_budget_alert.delay(owner_id, category_name, usage_pct)
     logger.info("process_recurring_transactions: created %d transactions for %s", created, today)

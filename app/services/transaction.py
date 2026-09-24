@@ -5,14 +5,13 @@ from datetime import date
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.budget import ALERT_THRESHOLD
 from app.models.transaction import Transaction, TransactionType
 from app.repositories.account import AccountRepository
 from app.repositories.budget import BudgetRepository
 from app.repositories.category import CategoryRepository
 from app.repositories.transaction import TransactionRepository
 from app.schemas.transaction import TransactionCreate, TransactionFilter, TransactionUpdate
-
-_ALERT_THRESHOLD = 0.80
 
 
 class TransactionService:
@@ -73,7 +72,16 @@ class TransactionService:
         updates = data.model_dump(exclude_none=True)
         if not updates:
             return transaction
-        return await self.repo.update(transaction, **updates)
+        transaction = await self.repo.update(transaction, **updates)
+
+        # Moving an expense to another category or month can push that budget past the threshold.
+        if transaction.type == TransactionType.EXPENSE and updates.keys() & {"category_id", "date"}:
+            category = await self.cat_repo.get_by_id_and_owner(transaction.category_id, user_id)
+            if category is not None:
+                await self._check_budget_alert(
+                    user_id, category.id, category.name, transaction.date.date()
+                )
+        return transaction
 
     async def delete(self, user_id: int, transaction_id: int) -> None:
         """Soft-delete — financial records are never physically removed."""
@@ -91,7 +99,7 @@ class TransactionService:
         spent = await self.repo.get_spending_by_category_for_month(user_id, category_id, month)
         usage_pct = float(spent / budget.limit_amount) if budget.limit_amount else 0.0
 
-        if usage_pct >= _ALERT_THRESHOLD and await self.budget_repo.mark_alert_sent(budget.id):
+        if usage_pct >= ALERT_THRESHOLD and await self.budget_repo.mark_alert_sent(budget.id):
             from app.workers.tasks import send_budget_alert
 
             send_budget_alert.delay(user_id, category_name, round(usage_pct * 100, 1))
