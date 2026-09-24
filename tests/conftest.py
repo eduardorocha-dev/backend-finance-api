@@ -2,8 +2,9 @@ import os
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session
 
 from app.db.base import Base
 from app.db.session import get_db
@@ -45,6 +46,16 @@ async def clean_db():
     table_names = ", ".join(t.name for t in reversed(Base.metadata.sorted_tables))
     async with engine_test.begin() as conn:
         await conn.execute(text(f"TRUNCATE {table_names} RESTART IDENTITY CASCADE"))
+
+
+# Celery tasks use a plain synchronous session; tests pass this one in.
+sync_engine_test = create_engine(TEST_DATABASE_URL.replace("+asyncpg", ""))
+
+
+@pytest.fixture
+def sync_session():
+    with Session(sync_engine_test) as session:
+        yield session
 
 
 @pytest.fixture

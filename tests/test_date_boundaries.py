@@ -10,20 +10,9 @@ from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
 
 from app.utils import export
 from app.workers.tasks import send_weekly_summaries
-from tests.conftest import TEST_DATABASE_URL
-
-sync_engine = create_engine(TEST_DATABASE_URL.replace("+asyncpg", ""))
-
-
-@pytest.fixture
-def sync_session():
-    with Session(sync_engine) as session:
-        yield session
 
 
 @pytest.fixture

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, field_validator
@@ -39,6 +39,8 @@ class BudgetRead(BaseModel):
     limit_amount: Decimal
     month: date
     owner_id: int
+    # when the threshold alert email was sent for this budget, if it has been
+    alert_sent_at: datetime | None
 
     model_config = {"from_attributes": True}
 

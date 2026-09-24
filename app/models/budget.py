@@ -8,6 +8,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
 
+# Share of a budget's limit at which the alert email is sent.
+ALERT_THRESHOLD = 0.80
+
 
 class Budget(Base, TimestampMixin):
     __tablename__ = "budgets"

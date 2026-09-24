@@ -5,12 +5,10 @@ from datetime import date
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.budget import Budget
+from app.models.budget import ALERT_THRESHOLD, Budget
 from app.repositories.budget import BudgetRepository
 from app.repositories.category import CategoryRepository
 from app.schemas.budget import BudgetCreate, BudgetUpdate, BudgetUsage
-
-_ALERT_THRESHOLD = 0.80
 
 
 class BudgetService:
@@ -76,7 +74,7 @@ class BudgetService:
                     spent_amount=spent,
                     remaining_amount=remaining,
                     usage_percentage=round(pct * 100, 2),
-                    alert_triggered=pct >= _ALERT_THRESHOLD,
+                    alert_triggered=pct >= ALERT_THRESHOLD,
                 )
             )
         return result
