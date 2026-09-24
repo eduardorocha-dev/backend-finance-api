@@ -159,9 +159,23 @@ def generate_export(self, export_job_id: int) -> None:
             logger.info("Export job %s completed: %s", export_job_id, file_path)
 
         except Exception as exc:
-            export_job.status = ExportStatus.FAILED
+            session.rollback()  # the error may have left the transaction unusable
+            if self.request.retries >= self.max_retries:
+                export_job.status = ExportStatus.FAILED
+                session.commit()
+                logger.exception("Export job %s failed after all retries", export_job_id)
+                raise
+
+            # A retry is scheduled, so the export isn't failed yet: show it as queued again.
+            export_job.status = ExportStatus.PENDING
             session.commit()
-            logger.exception("Export job %s failed", export_job_id)
+            logger.warning(
+                "Export job %s failed (attempt %d of %d), retrying in 60s",
+                export_job_id,
+                self.request.retries + 1,
+                self.max_retries + 1,
+                exc_info=True,
+            )
             raise self.retry(exc=exc, countdown=60)
 
 
