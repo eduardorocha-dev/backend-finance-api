@@ -38,6 +38,8 @@ class CashFlowEntry(BaseModel):
     income: Decimal
     expenses: Decimal
     net: Decimal
+    # running total of `net` from date_from through this period
+    cumulative_net: Decimal
 
 
 class CashFlowResponse(BaseModel):
