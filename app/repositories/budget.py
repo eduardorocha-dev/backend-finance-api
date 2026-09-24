@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import cast
 
-from sqlalchemy import func, select
+from sqlalchemy import CursorResult, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
@@ -44,6 +45,23 @@ class BudgetRepository(BaseRepository[Budget]):
             )
         )
         return result.scalar_one_or_none()
+
+    async def mark_alert_sent(self, budget_id: int) -> bool:
+        """Record that the alert was sent, unless it already was.
+
+        Returns True only for the caller that flipped alert_sent_at from NULL,
+        so concurrent expenses can't both send the alert: Postgres makes the
+        second UPDATE wait for the first and then re-check the WHERE clause.
+        """
+        result = cast(
+            CursorResult,
+            await self.session.execute(
+                update(Budget)
+                .where(Budget.id == budget_id, Budget.alert_sent_at.is_(None))
+                .values(alert_sent_at=func.now())
+            ),
+        )
+        return result.rowcount == 1
 
     async def update(self, budget: Budget, **kwargs) -> Budget:
         for key, value in kwargs.items():

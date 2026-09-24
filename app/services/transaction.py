@@ -91,7 +91,7 @@ class TransactionService:
         spent = await self.repo.get_spending_by_category_for_month(user_id, category_id, month)
         usage_pct = float(spent / budget.limit_amount) if budget.limit_amount else 0.0
 
-        if usage_pct >= _ALERT_THRESHOLD:
+        if usage_pct >= _ALERT_THRESHOLD and await self.budget_repo.mark_alert_sent(budget.id):
             from app.workers.tasks import send_budget_alert
 
             send_budget_alert.delay(user_id, category_name, round(usage_pct * 100, 1))
