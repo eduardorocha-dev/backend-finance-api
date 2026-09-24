@@ -130,9 +130,16 @@ class TransactionRepository(BaseRepository[Transaction]):
         ]
 
     async def get_cashflow(self, owner_id: int, date_from: date, date_to: date) -> list[dict]:
-        result = await self.session.execute(
+        """Daily income/expenses plus a running total of net cash flow.
+
+        The `daily` CTE aggregates one row per day; the outer query then adds
+        `SUM(net) OVER (ORDER BY period)` so each day carries the cumulative
+        net since `date_from`.
+        """
+        day = func.date(Transaction.date)
+        daily = (
             select(
-                func.date(Transaction.date).label("period"),
+                day.label("period"),
                 func.coalesce(
                     func.sum(
                         case(
@@ -156,17 +163,29 @@ class TransactionRepository(BaseRepository[Transaction]):
             .where(
                 Account.owner_id == owner_id,
                 Transaction.is_deleted == False,  # noqa: E712
-                func.date(Transaction.date) >= date_from,
-                func.date(Transaction.date) <= date_to,
+                day >= date_from,
+                day <= date_to,
             )
-            .group_by(func.date(Transaction.date))
-            .order_by(func.date(Transaction.date))
+            .group_by(day)
+            .cte("daily")
+        )
+        net = daily.c.income - daily.c.expenses
+        result = await self.session.execute(
+            select(
+                daily.c.period,
+                daily.c.income,
+                daily.c.expenses,
+                net.label("net"),
+                func.sum(net).over(order_by=daily.c.period).label("cumulative_net"),
+            ).order_by(daily.c.period)
         )
         return [
             {
                 "period": row.period,
                 "income": row.income,
                 "expenses": row.expenses,
+                "net": row.net,
+                "cumulative_net": row.cumulative_net,
             }
             for row in result.all()
         ]

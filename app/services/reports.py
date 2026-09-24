@@ -55,7 +55,8 @@ class ReportService:
                 period=r["period"],
                 income=r["income"],
                 expenses=r["expenses"],
-                net=r["income"] - r["expenses"],
+                net=r["net"],
+                cumulative_net=r["cumulative_net"],
             )
             for r in rows
         ]

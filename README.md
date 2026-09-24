@@ -32,11 +32,11 @@
 
 - 🔐 **JWT Authentication** — secure register/login with bcrypt password hashing and refresh tokens
 - 🏦 **Multi-account support** — track Checking, Savings, Credit Card, and Cash accounts
-- 📊 **Transaction management** — immutable ledger with soft-delete and correction entries
+- 📊 **Transaction management** — soft-delete (records are never physically removed) with created/updated timestamps
 - 🏷️ **Categories & Budgets** — user-defined categories with monthly spending limits and alert thresholds
-- 📈 **Financial reports** — monthly summaries, category breakdowns, and cash flow using PostgreSQL CTEs and window functions
+- 📈 **Financial reports** — monthly summaries, category breakdowns, and daily cash flow with a running total (PostgreSQL CTE + window function)
 - 📤 **Async exports** — request CSV or PDF exports that are generated in the background and delivered via email
-- ⏰ **Scheduled jobs** — monthly budget resets, weekly summary emails, and daily balance snapshots via Celery Beat
+- ⏰ **Scheduled jobs** — monthly budget carry-over, weekly summary emails, recurring transactions, and daily balance snapshots via Celery Beat
 - 🔔 **Budget alerts** — automatic notifications when spending reaches 80% of a monthly budget
 - 🐳 **Fully containerized** — Docker Compose setup for one-command local development
 - ✅ **80%+ test coverage** — pytest with async support and factory-based test data
@@ -362,7 +362,7 @@ DELETE /api/v1/budgets/{id}
 ```http
 GET /api/v1/reports/monthly       # income vs expense summary
 GET /api/v1/reports/categories    # breakdown by category
-GET /api/v1/reports/cashflow      # daily/weekly net cash flow
+GET /api/v1/reports/cashflow      # daily net cash flow + running total
 ```
 
 ### Exports
@@ -435,14 +435,17 @@ Tests use a dedicated PostgreSQL database (`fintrack_test` on port 5433) spun up
 
 ## 💡 Design Decisions
 
-**Immutable transactions**
-Financial records are never edited or hard-deleted. Updates create a correcting entry that references the original, matching the behavior of real accounting systems. This also provides a complete audit trail out of the box.
+**Soft-deleted transactions**
+Transactions are never physically removed: `DELETE` sets `is_deleted`, and every query filters deleted rows out. Each row carries `created_at` and `updated_at`. Edits currently update the row in place; turning them into correcting entries that reference the original (a fully immutable ledger) is on the roadmap.
+
+**CTEs and window functions for reports**
+The cash-flow report aggregates one row per day in a CTE, then adds `SUM(net) OVER (ORDER BY period)` so each day also carries the running total since the start of the range. Postgres computes it in a single query.
 
 **NUMERIC(12,2) for money**
 All monetary values are stored as `NUMERIC(12,2)` in PostgreSQL — never `FLOAT`. Floating-point arithmetic is unsuitable for money due to precision errors.
 
-**Snapshot balances**
-Recalculating an account balance by summing all transactions gets expensive over time. A `balance_snapshot` field is updated daily by a Celery Beat task, so balance queries only need to sum transactions since the last snapshot.
+**Balance snapshots**
+A Celery Beat task stores each account's balance in `balance_snapshot` every night. The balance endpoint still sums all transactions live, which is always correct but gets slower as history grows. Reading the snapshot and summing only the transactions since it was taken is on the roadmap.
 
 **Repository pattern**
 All database queries live in repository classes. Services never write raw SQL. This keeps service logic readable and database access in one place.
@@ -456,6 +459,8 @@ Scheduled tasks are defined in code alongside the rest of the application, versi
 
 - [x] Multi-currency support with exchange rate table
 - [x] Recurring transaction templates
+- [ ] Immutable ledger: edits create correcting entries instead of updating in place
+- [ ] Serve account balances from the nightly snapshot plus transactions since then
 - [ ] CSV import from bank statements
 - [ ] Spending insights endpoint (month-over-month comparisons)
 - [ ] WebSocket support for real-time budget alerts

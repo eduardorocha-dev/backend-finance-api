@@ -124,3 +124,15 @@ async def test_cashflow_report(client: AsyncClient, auth_headers: dict, seeded):
     nets = {e["period"]: float(e["income"]) - float(e["expenses"]) for e in entries}
     assert nets["2024-03-10"] == 1000.0
     assert nets["2024-03-15"] == -200.0
+
+
+async def test_cashflow_report_cumulative_net(client: AsyncClient, auth_headers: dict, seeded):
+    resp = await client.get(
+        f"{BASE}/cashflow",
+        params={"date_from": "2024-03-01", "date_to": "2024-03-31"},
+        headers=auth_headers,
+    )
+    entries = resp.json()["entries"]
+    assert [e["period"] for e in entries] == ["2024-03-10", "2024-03-15"]
+    assert [float(e["net"]) for e in entries] == [1000.0, -200.0]
+    assert [float(e["cumulative_net"]) for e in entries] == [1000.0, 800.0]
