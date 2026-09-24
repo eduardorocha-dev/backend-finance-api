@@ -252,6 +252,7 @@ All common tasks are available via `make`. Run `make <command>` from the project
 | `make migrate` | Apply all pending Alembic migrations |
 | `make migration name=<desc>` | Auto-generate a new migration from model changes |
 | `make db-reset` | Wipe and recreate the database from scratch |
+| `make admin email=<email>` | Give an existing user admin privileges (needed to manage exchange rates) |
 
 ### Tests & Coverage
 
@@ -374,14 +375,17 @@ GET  /api/v1/exports/{id}         # poll status + get download link
 
 ### Exchange Rates
 
+Rates are shared by all users. Anyone logged in can read them and convert; only admins can
+create, update or delete them (others get `403`). Promote a user with `make admin email=...`.
+
 ```http
 GET    /api/v1/exchange-rates?from_currency=&to_currency=&limit=   # rate history for a pair
-POST   /api/v1/exchange-rates
+POST   /api/v1/exchange-rates                                      # admin only
 GET    /api/v1/exchange-rates/latest?from_currency=&to_currency=
 POST   /api/v1/exchange-rates/convert
 GET    /api/v1/exchange-rates/{id}
-PATCH  /api/v1/exchange-rates/{id}
-DELETE /api/v1/exchange-rates/{id}
+PATCH  /api/v1/exchange-rates/{id}                                 # admin only
+DELETE /api/v1/exchange-rates/{id}                                 # admin only
 ```
 
 ### Recurring Transactions

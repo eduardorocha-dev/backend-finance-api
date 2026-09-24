@@ -1,4 +1,4 @@
-.PHONY: doctor install env setup up down start logs logs-api logs-worker \
+.PHONY: doctor install env setup up down start logs logs-api logs-worker admin \
         migrate migration db-reset \
         test test-full coverage coverage-docker \
         lint format typecheck check ci dev worker beat
@@ -58,6 +58,10 @@ migrate:
 migration:
 	@test -n "$(name)" || (echo "Usage: make migration name=<description>" && exit 1)
 	.venv/bin/alembic revision --autogenerate -m "$(name)"
+
+admin:
+	@test -n "$(email)" || (echo "Usage: make admin email=<user email>" && exit 1)
+	.venv/bin/python -m app.cli make-admin $(email)
 
 db-reset:
 	@echo "Resetting database..."
