@@ -51,6 +51,9 @@ class BudgetService:
         updates = data.model_dump(exclude_none=True)
         if not updates:
             return budget
+        if "limit_amount" in updates and updates["limit_amount"] != budget.limit_amount:
+            # New limit, new threshold: allow the alert to fire again.
+            updates["alert_sent_at"] = None
         return await self.repo.update(budget, **updates)
 
     async def delete(self, user_id: int, budget_id: int) -> None:
