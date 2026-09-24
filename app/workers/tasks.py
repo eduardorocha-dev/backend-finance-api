@@ -179,7 +179,7 @@ def send_weekly_summaries() -> None:
                         Account.owner_id == user.id,
                         Transaction.is_deleted == False,  # noqa: E712
                         Transaction.date >= week_ago,
-                        Transaction.date <= today,
+                        Transaction.date < today + timedelta(days=1),
                     )
                     .order_by(Transaction.date.desc())
                 )

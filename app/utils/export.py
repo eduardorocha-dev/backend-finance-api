@@ -6,7 +6,7 @@ import csv
 import io
 import os
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -64,7 +64,7 @@ def generate_csv(session: Session, owner_id: int, date_from: date, date_to: date
             Account.owner_id == owner_id,
             Transaction.is_deleted == False,  # noqa: E712
             Transaction.date >= date_from,
-            Transaction.date <= date_to,
+            Transaction.date < date_to + timedelta(days=1),
         )
         .order_by(Transaction.date.asc())
     ).all()
@@ -119,7 +119,7 @@ def generate_pdf(session: Session, owner_id: int, date_from: date, date_to: date
             Account.owner_id == owner_id,
             Transaction.is_deleted == False,  # noqa: E712
             Transaction.date >= date_from,
-            Transaction.date <= date_to,
+            Transaction.date < date_to + timedelta(days=1),
         )
         .order_by(Transaction.date.asc())
     ).all()

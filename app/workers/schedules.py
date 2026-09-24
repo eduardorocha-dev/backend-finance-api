@@ -3,7 +3,7 @@
 from celery.schedules import crontab
 
 BEAT_SCHEDULE = {
-    # Resets monthly spend counters — runs 1st of every month at 00:00
+    # Copies last month's budgets into the new month — runs 1st of every month at 00:00
     "reset-monthly-budgets": {
         "task": "app.workers.tasks.reset_monthly_budgets",
         "schedule": crontab(hour=0, minute=0, day_of_month="1"),
