@@ -117,7 +117,9 @@ backend-finance-api/
 │   │       │   ├── categories.py
 │   │       │   ├── budgets.py
 │   │       │   ├── reports.py
-│   │       │   └── exports.py
+│   │       │   ├── exports.py
+│   │       │   ├── exchange_rates.py
+│   │       │   └── recurring_transactions.py
 │   │       └── router.py
 │   ├── core/
 │   │   ├── config.py          # Pydantic Settings
@@ -125,14 +127,17 @@ backend-finance-api/
 │   │   └── dependencies.py    # FastAPI deps (get_current_user, etc.)
 │   ├── db/
 │   │   ├── base.py            # DeclarativeBase + TimestampMixin
-│   │   └── session.py         # Async engine + session factory
+│   │   ├── session.py         # Async engine + session factory
+│   │   └── sync_session.py    # Sync session for Celery tasks
 │   ├── models/
 │   │   ├── user.py
 │   │   ├── account.py
-│   │   ├── transaction.py     # Transaction + CorrectionEntry
+│   │   ├── transaction.py
 │   │   ├── category.py
 │   │   ├── budget.py
-│   │   └── export.py          # ExportJob
+│   │   ├── export.py          # ExportJob
+│   │   ├── exchange_rate.py
+│   │   └── recurring_transaction.py
 │   ├── schemas/               # Pydantic request/response models
 │   ├── services/              # Business logic layer
 │   ├── repositories/          # DB query layer
@@ -147,8 +152,7 @@ backend-finance-api/
 │   └── main.py                # FastAPI app entrypoint
 ├── tests/
 │   ├── conftest.py            # Fixtures, test DB, client setup
-│   ├── api/                   # Integration tests
-│   └── services/              # Unit tests
+│   └── test_*.py              # One file per feature (HTTP-level tests)
 ├── alembic/
 │   ├── versions/
 │   └── env.py
@@ -332,6 +336,16 @@ PATCH  /api/v1/transactions/{id}
 DELETE /api/v1/transactions/{id}
 ```
 
+### Categories
+
+```http
+GET    /api/v1/categories
+POST   /api/v1/categories
+GET    /api/v1/categories/{id}
+PATCH  /api/v1/categories/{id}
+DELETE /api/v1/categories/{id}
+```
+
 ### Budgets
 
 ```http
@@ -358,6 +372,28 @@ POST /api/v1/exports              # request async CSV or PDF
 GET  /api/v1/exports/{id}         # poll status + get download link
 ```
 
+### Exchange Rates
+
+```http
+GET    /api/v1/exchange-rates?from_currency=&to_currency=&limit=   # rate history for a pair
+POST   /api/v1/exchange-rates
+GET    /api/v1/exchange-rates/latest?from_currency=&to_currency=
+POST   /api/v1/exchange-rates/convert
+GET    /api/v1/exchange-rates/{id}
+PATCH  /api/v1/exchange-rates/{id}
+DELETE /api/v1/exchange-rates/{id}
+```
+
+### Recurring Transactions
+
+```http
+GET    /api/v1/recurring-transactions
+POST   /api/v1/recurring-transactions
+GET    /api/v1/recurring-transactions/{id}
+PATCH  /api/v1/recurring-transactions/{id}
+DELETE /api/v1/recurring-transactions/{id}
+```
+
 ---
 
 ## ⏰ Background Jobs
@@ -373,27 +409,24 @@ GET  /api/v1/exports/{id}         # poll status + get download link
 
 | Task | Schedule | Description |
 |---|---|---|
-| `reset_monthly_budgets` | 1st of month, 00:00 | Resets monthly spend counters |
+| `reset_monthly_budgets` | 1st of month, 00:00 | Copies last month's budgets into the new month |
 | `send_weekly_summaries` | Monday, 08:00 | Emails each user a weekly spending summary |
 | `snapshot_balances` | Daily, 23:59 | Caches account balances for fast lookups |
+| `process_recurring_transactions` | Daily, 00:05 | Creates transactions from due recurring templates |
 
 ---
 
 ## 🧪 Running Tests
 
 ```bash
-# Run all tests with coverage
-pytest
+# Run all tests
+make test
 
-# Run only unit tests
-pytest tests/services/
+# Run one feature's tests
+.venv/bin/pytest tests/test_transactions.py
 
-# Run only integration tests
-pytest tests/api/
-
-# Generate HTML coverage report
-pytest --cov=app --cov-report=html
-open htmlcov/index.html
+# Tests with coverage report (opens the HTML report)
+make coverage
 ```
 
 Tests use a dedicated PostgreSQL database (`fintrack_test` on port 5433) spun up via Docker Compose. Make sure the test database container is running before executing the test suite.
@@ -412,7 +445,7 @@ All monetary values are stored as `NUMERIC(12,2)` in PostgreSQL — never `FLOAT
 Recalculating an account balance by summing all transactions gets expensive over time. A `balance_snapshot` field is updated daily by a Celery Beat task, so balance queries only need to sum transactions since the last snapshot.
 
 **Repository pattern**
-All database queries live in repository classes. Services never write raw SQL. This makes it trivial to swap the database layer in tests (SQLite instead of PostgreSQL) and keeps service logic readable.
+All database queries live in repository classes. Services never write raw SQL. This keeps service logic readable and database access in one place.
 
 **Celery Beat over cron**
 Scheduled tasks are defined in code alongside the rest of the application, version-controlled, and don't require any external cron server or infrastructure configuration.
@@ -421,8 +454,8 @@ Scheduled tasks are defined in code alongside the rest of the application, versi
 
 ## 🗺 Roadmap
 
-- [ ] Multi-currency support with exchange rate table
-- [ ] Recurring transaction templates
+- [x] Multi-currency support with exchange rate table
+- [x] Recurring transaction templates
 - [ ] CSV import from bank statements
 - [ ] Spending insights endpoint (month-over-month comparisons)
 - [ ] WebSocket support for real-time budget alerts

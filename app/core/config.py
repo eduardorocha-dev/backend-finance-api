@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,7 +9,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/fintrack"
 
     # JWT
-    SECRET_KEY: str = "changeme"
+    # Required, no default: the app must not start with a guessable signing key.
+    # Generate one with `openssl rand -hex 32` (or run `make env`).
+    SECRET_KEY: str = Field(min_length=32)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -29,4 +32,4 @@ class Settings(BaseSettings):
     AWS_BUCKET_NAME: str = ""
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]  # SECRET_KEY comes from env/.env
