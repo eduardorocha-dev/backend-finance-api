@@ -27,7 +27,9 @@ class ExchangeRate(Base, TimestampMixin):
 
     __table_args__ = (
         UniqueConstraint(
-            "from_currency", "to_currency", "effective_date",
+            "from_currency",
+            "to_currency",
+            "effective_date",
             name="uq_exchange_rate_pair_date",
         ),
         CheckConstraint(

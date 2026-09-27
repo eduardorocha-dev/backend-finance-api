@@ -185,9 +185,7 @@ async def test_delete_recurring(client: AsyncClient, auth_headers: dict, recurri
 # ── Isolation ─────────────────────────────────────────────────────────────────
 
 
-async def test_other_user_cannot_access(
-    client: AsyncClient, auth_headers: dict, recurring: dict
-):
+async def test_other_user_cannot_access(client: AsyncClient, auth_headers: dict, recurring: dict):
     # Register a second user
     await client.post(
         "/api/v1/auth/register",
@@ -198,6 +196,4 @@ async def test_other_user_cannot_access(
     )
     other_headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
-    assert (
-        await client.get(f"{BASE}/{recurring['id']}", headers=other_headers)
-    ).status_code == 404
+    assert (await client.get(f"{BASE}/{recurring['id']}", headers=other_headers)).status_code == 404
