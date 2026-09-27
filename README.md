@@ -329,6 +329,10 @@ GET    /api/v1/accounts/{id}/balance
 
 ### Transactions
 
+`type` is `income`, `expense` or `transfer`. A transfer also takes `to_account_id` (another of your
+accounts, same currency): it is debited from `account_id` and credited to `to_account_id`, and it
+appears when filtering by either account.
+
 ```http
 GET    /api/v1/transactions?account_id=&category_id=&type=&date_from=&date_to=
 POST   /api/v1/transactions

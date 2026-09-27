@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import case, func, select
+from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
@@ -11,6 +11,30 @@ from app.models.category import Category
 from app.models.transaction import Transaction, TransactionType
 from app.repositories.base import BaseRepository, _month_range
 from app.schemas.transaction import TransactionFilter
+
+
+def account_balance_select(account_id: int) -> Select:
+    """SELECT the live balance of one account.
+
+    Income adds; expenses and outgoing transfers subtract; incoming transfers
+    (rows whose to_account_id is this account) add. Soft-deleted rows are ignored.
+    Shared by the balance endpoint and the nightly snapshot so they always agree.
+    """
+    return select(
+        func.coalesce(
+            func.sum(
+                case(
+                    (Transaction.to_account_id == account_id, Transaction.amount),
+                    (Transaction.type == TransactionType.INCOME, Transaction.amount),
+                    else_=-Transaction.amount,
+                )
+            ),
+            Decimal("0"),
+        )
+    ).where(
+        or_(Transaction.account_id == account_id, Transaction.to_account_id == account_id),
+        Transaction.is_deleted == False,  # noqa: E712
+    )
 
 
 class TransactionRepository(BaseRepository[Transaction]):
@@ -29,7 +53,13 @@ class TransactionRepository(BaseRepository[Transaction]):
             )
         )
         if filters.account_id is not None:
-            stmt = stmt.where(Transaction.account_id == filters.account_id)
+            # include transfers coming into the account, not only rows it is the source of
+            stmt = stmt.where(
+                or_(
+                    Transaction.account_id == filters.account_id,
+                    Transaction.to_account_id == filters.account_id,
+                )
+            )
         if filters.category_id is not None:
             stmt = stmt.where(Transaction.category_id == filters.category_id)
         if filters.type is not None:
@@ -191,23 +221,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         ]
 
     async def get_balance_for_account(self, account_id: int) -> Decimal:
-        """Live balance: income adds, expenses and transfers subtract."""
-        result = await self.session.execute(
-            select(
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (Transaction.type == TransactionType.INCOME, Transaction.amount),
-                            else_=-Transaction.amount,
-                        )
-                    ),
-                    Decimal("0"),
-                )
-            ).where(
-                Transaction.account_id == account_id,
-                Transaction.is_deleted == False,  # noqa: E712
-            )
-        )
+        result = await self.session.execute(account_balance_select(account_id))
         return result.scalar_one()
 
     async def get_spending_by_category_for_month(
