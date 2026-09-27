@@ -40,4 +40,7 @@ class Account(Base, TimestampMixin):
     )
 
     owner: Mapped["User"] = relationship(back_populates="accounts")
-    transactions: Mapped[list["Transaction"]] = relationship(back_populates="account")
+    # Transactions whose source is this account (incoming transfers point here via to_account_id).
+    transactions: Mapped[list["Transaction"]] = relationship(
+        back_populates="account", foreign_keys="Transaction.account_id"
+    )

@@ -290,34 +290,17 @@ def send_weekly_summaries() -> None:
 @celery_app.task(name="app.workers.tasks.snapshot_balances")
 def snapshot_balances() -> None:
     """Update balance_snapshot on every account with the current live balance."""
-    from sqlalchemy import case, func
-
     from app.models.account import Account
-    from app.models.transaction import Transaction, TransactionType
+    from app.repositories.transaction import account_balance_select
 
     with _get_session() as session:
         accounts = session.execute(select(Account)).scalars().all()
 
         updated = 0
         for account in accounts:
-            result = session.execute(
-                select(
-                    func.coalesce(
-                        func.sum(
-                            case(
-                                (Transaction.type == TransactionType.INCOME, Transaction.amount),
-                                else_=-Transaction.amount,
-                            )
-                        ),
-                        0,
-                    )
-                ).where(
-                    Transaction.account_id == account.id,
-                    Transaction.is_deleted == False,  # noqa: E712
-                )
+            account.balance_snapshot = session.execute(
+                account_balance_select(account.id)
             ).scalar_one()
-
-            account.balance_snapshot = result
             updated += 1
 
         session.commit()

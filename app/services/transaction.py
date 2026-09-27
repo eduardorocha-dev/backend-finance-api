@@ -29,12 +29,26 @@ class TransactionService:
         if account is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
 
+        if data.to_account_id is not None:
+            destination = await self.account_repo.get_by_id_and_owner(data.to_account_id, user_id)
+            if destination is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Destination account not found"
+                )
+            if destination.currency != account.currency:
+                # Moving money between currencies would need an exchange rate; not supported yet.
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Transfers between accounts with different currencies are not supported",
+                )
+
         category = await self.cat_repo.get_by_id_and_owner(data.category_id, user_id)
         if category is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
 
         transaction = await self.repo.create(
             account_id=data.account_id,
+            to_account_id=data.to_account_id,
             category_id=data.category_id,
             type=data.type,
             amount=data.amount,

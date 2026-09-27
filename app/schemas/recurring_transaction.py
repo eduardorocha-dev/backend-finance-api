@@ -26,6 +26,14 @@ class RecurringTransactionCreate(BaseModel):
     frequency: RecurringFrequency
     next_due_date: date
 
+    @field_validator("type")
+    @classmethod
+    def no_recurring_transfers(cls, v: TransactionType) -> TransactionType:
+        # Templates have no destination account, so each run would only debit the source.
+        if v == TransactionType.TRANSFER:
+            raise ValueError("Recurring transfers are not supported yet")
+        return v
+
     @field_validator("amount")
     @classmethod
     def amount_must_be_positive(cls, v: Decimal) -> Decimal:
