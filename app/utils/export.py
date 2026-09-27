@@ -138,25 +138,31 @@ def generate_pdf(session: Session, owner_id: int, date_from: date, date_to: date
 
     table_data = [["Date", "Type", "Amount", "Description", "Category", "Account"]]
     for row in rows:
-        table_data.append([
-            row.date.strftime("%Y-%m-%d"),
-            row.type.value,
-            f"${row.amount:,.2f}",
-            row.description or "",
-            row.category_name,
-            row.account_name,
-        ])
+        table_data.append(
+            [
+                row.date.strftime("%Y-%m-%d"),
+                row.type.value,
+                f"${row.amount:,.2f}",
+                row.description or "",
+                row.category_name,
+                row.account_name,
+            ]
+        )
 
     table = Table(table_data, repeatRows=1)
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2563eb")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f1f5f9")]),
-        ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
-        ("PADDING", (0, 0), (-1, -1), 4),
-    ]))
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2563eb")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f1f5f9")]),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
+                ("PADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
 
     elements.append(table)
     doc.build(elements)

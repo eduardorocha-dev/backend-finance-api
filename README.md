@@ -267,7 +267,7 @@ All common tasks are available via `make`. Run `make <command>` from the project
 
 | Command | Description |
 |---|---|
-| `make lint` | Check code style with Ruff |
+| `make lint` | Lint and check formatting with Ruff (same as CI) |
 | `make format` | Auto-format code with Ruff |
 | `make typecheck` | Run static type checking with mypy |
 | `make check` | Run lint + typecheck + tests in sequence |

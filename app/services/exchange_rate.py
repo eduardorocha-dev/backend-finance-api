@@ -52,9 +52,7 @@ class ExchangeRateService:
 
     async def update(self, exchange_rate_id: int, data: ExchangeRateUpdate) -> ExchangeRate:
         er = await self.get(exchange_rate_id)
-        return await self.repo.update(
-            er, rate=data.rate.quantize(_SIX, rounding=ROUND_HALF_UP)
-        )
+        return await self.repo.update(er, rate=data.rate.quantize(_SIX, rounding=ROUND_HALF_UP))
 
     async def delete(self, exchange_rate_id: int) -> None:
         er = await self.get(exchange_rate_id)

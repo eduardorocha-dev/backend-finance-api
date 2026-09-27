@@ -87,7 +87,8 @@ coverage-docker:
 # ── Code quality ──────────────────────────────────────────────────────────────
 
 lint:
-	.venv/bin/ruff check app tests
+	.venv/bin/ruff check .
+	.venv/bin/ruff format --check .
 
 format:
 	.venv/bin/ruff format app tests

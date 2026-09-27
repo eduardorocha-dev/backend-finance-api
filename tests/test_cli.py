@@ -1,19 +1,9 @@
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from app.cli import main, set_admin
 from app.models.user import User
-from tests.conftest import TEST_DATABASE_URL
-
-sync_engine = create_engine(TEST_DATABASE_URL.replace("+asyncpg", ""))
-
-
-@pytest.fixture
-def sync_session():
-    with Session(sync_engine) as session:
-        yield session
 
 
 async def test_set_admin_promotes_and_revokes(client: AsyncClient, sync_session):

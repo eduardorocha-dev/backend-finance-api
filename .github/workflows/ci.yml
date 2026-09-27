@@ -24,6 +24,34 @@ jobs:
       - name: Run Ruff
         run: ruff check .
 
+      - name: Check formatting
+        run: ruff format --check .
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      # mypy needs the real packages installed to check calls into SQLAlchemy, FastAPI, etc.
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run mypy
+        run: mypy app
+
   test:
     name: Test
     runs-on: ubuntu-latest
