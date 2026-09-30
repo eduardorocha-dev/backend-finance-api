@@ -3,6 +3,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel
 
+from app.models.account import CurrencyCode
+
 # Reports have no incoming Create/Update schemas —
 # they are read-only views driven by query parameters.
 # The query parameters will be defined directly in the endpoint functions.
@@ -13,6 +15,7 @@ from pydantic import BaseModel
 
 class MonthlySummary(BaseModel):
     month: date
+    currency: CurrencyCode  # every amount is converted into the user's base currency
     total_income: Decimal
     total_expenses: Decimal
     net: Decimal  # total_income - total_expenses
@@ -28,6 +31,7 @@ class CategoryBreakdown(BaseModel):
 
 class CategoryBreakdownResponse(BaseModel):
     month: date
+    currency: CurrencyCode
     total_expenses: Decimal
     breakdown: list[CategoryBreakdown]
 
@@ -45,4 +49,5 @@ class CashFlowEntry(BaseModel):
 class CashFlowResponse(BaseModel):
     date_from: date
     date_to: date
+    currency: CurrencyCode
     entries: list[CashFlowEntry]

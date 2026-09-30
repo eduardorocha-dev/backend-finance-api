@@ -19,7 +19,7 @@ async def monthly_report(
     session: Annotated[AsyncSession, Depends(get_db)],
     month: date = Query(..., examples=["2024-03-01"]),
 ):
-    return await ReportService(session).monthly(current_user.id, month)
+    return await ReportService(session).monthly(current_user.id, month, current_user.base_currency)
 
 
 @router.get("/categories", response_model=CategoryBreakdownResponse)
@@ -28,7 +28,9 @@ async def categories_report(
     session: Annotated[AsyncSession, Depends(get_db)],
     month: date = Query(..., examples=["2024-03-01"]),
 ):
-    return await ReportService(session).category_breakdown(current_user.id, month)
+    return await ReportService(session).category_breakdown(
+        current_user.id, month, current_user.base_currency
+    )
 
 
 @router.get("/cashflow", response_model=CashFlowResponse)
@@ -38,4 +40,6 @@ async def cashflow_report(
     date_from: date = Query(..., examples=["2024-03-01"]),
     date_to: date = Query(..., examples=["2024-03-31"]),
 ):
-    return await ReportService(session).cashflow(current_user.id, date_from, date_to)
+    return await ReportService(session).cashflow(
+        current_user.id, date_from, date_to, current_user.base_currency
+    )
