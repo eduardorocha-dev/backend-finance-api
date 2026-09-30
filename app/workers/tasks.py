@@ -229,10 +229,18 @@ def reset_monthly_budgets() -> None:
 
 @celery_app.task(name="app.workers.tasks.send_weekly_summaries")
 def send_weekly_summaries() -> None:
-    """Email each active user a summary of their spending over the past 7 days."""
+    """Email each active user their income and expenses for the past 7 days.
+
+    Amounts are converted into the user's base currency and summed in SQL.
+    A user with an amount that has no exchange rate yet is skipped (and logged)
+    rather than sent wrong totals.
+    """
+    from sqlalchemy import case, func
+
     from app.models.account import Account
     from app.models.transaction import Transaction, TransactionType
     from app.models.user import User
+    from app.repositories.conversion import converted_amount, first_missing_rate
     from app.utils.email import send_email
 
     today = date.today()
@@ -247,44 +255,61 @@ def send_weekly_summaries() -> None:
             .all()
         )
 
+        sent = 0
         for user in users:
-            rows = (
-                session.execute(
-                    select(Transaction)
-                    .join(Account, Transaction.account_id == Account.id)
-                    .where(
-                        Account.owner_id == user.id,
-                        Transaction.is_deleted == False,  # noqa: E712
-                        Transaction.date >= week_ago,
-                        Transaction.date < today + timedelta(days=1),
-                    )
-                    .order_by(Transaction.date.desc())
+            base = user.base_currency
+            missing = session.execute(first_missing_rate(user.id, base, week_ago, today)).first()
+            if missing is not None:
+                logger.warning(
+                    "send_weekly_summaries: skipped user=%s, no %s→%s rate on or before %s",
+                    user.id,
+                    missing.currency.value,
+                    base.value,
+                    missing.first_date,
                 )
-                .scalars()
-                .all()
-            )
-
-            if not rows:
                 continue
 
-            income = sum(t.amount for t in rows if t.type == TransactionType.INCOME)
-            expenses = sum(t.amount for t in rows if t.type == TransactionType.EXPENSE)
-            net = income - expenses
+            amount = converted_amount(base)
+            totals = session.execute(
+                select(
+                    func.count().label("count"),
+                    func.coalesce(
+                        func.sum(case((Transaction.type == TransactionType.INCOME, amount))), 0
+                    ).label("income"),
+                    func.coalesce(
+                        func.sum(case((Transaction.type == TransactionType.EXPENSE, amount))), 0
+                    ).label("expenses"),
+                )
+                .join(Account, Transaction.account_id == Account.id)
+                .where(
+                    Account.owner_id == user.id,
+                    Transaction.is_deleted == False,  # noqa: E712
+                    Transaction.type.in_([TransactionType.INCOME, TransactionType.EXPENSE]),
+                    Transaction.date >= week_ago,
+                    Transaction.date < today + timedelta(days=1),
+                )
+            ).one()
 
+            if totals.count == 0:
+                continue
+
+            code = base.value
+            net = totals.income - totals.expenses
             subject = f"Your weekly spending summary ({week_ago} → {today})"
             body = (
                 f"Hi {user.full_name},\n\n"
-                f"Here's your spending summary for the past 7 days:\n\n"
-                f"  Income:   ${income:,.2f}\n"
-                f"  Expenses: ${expenses:,.2f}\n"
-                f"  Net:      ${net:,.2f}\n\n"
-                f"  Transactions: {len(rows)}\n\n"
+                f"Here's your spending summary for the past 7 days (in {code}):\n\n"
+                f"  Income:   {totals.income:,.2f} {code}\n"
+                f"  Expenses: {totals.expenses:,.2f} {code}\n"
+                f"  Net:      {net:,.2f} {code}\n\n"
+                f"  Transactions: {totals.count}\n\n"
                 "Log in to fintrack to see the full breakdown.\n\n"
                 "— fintrack"
             )
             send_email(user.email, subject, body)
+            sent += 1
 
-    logger.info("send_weekly_summaries: processed %d users", len(users))
+    logger.info("send_weekly_summaries: sent %d of %d users", sent, len(users))
 
 
 @celery_app.task(name="app.workers.tasks.snapshot_balances")

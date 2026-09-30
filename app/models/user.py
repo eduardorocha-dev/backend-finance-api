@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from sqlalchemy import Boolean, String, false
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
+from app.models.account import CurrencyCode
 
 
 class User(Base, TimestampMixin):
@@ -18,6 +20,14 @@ class User(Base, TimestampMixin):
     # Promote a user with `make admin email=...`.
     is_admin: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=false(), nullable=False
+    )
+
+    # Reports convert every account's amounts into this currency.
+    base_currency: Mapped[CurrencyCode] = mapped_column(
+        SAEnum(CurrencyCode, create_type=False),
+        default=CurrencyCode.USD,
+        server_default=CurrencyCode.USD.name,
+        nullable=False,
     )
 
     accounts: Mapped[list["Account"]] = relationship(back_populates="owner")

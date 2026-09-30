@@ -6,10 +6,11 @@ from decimal import Decimal
 from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.account import Account
+from app.models.account import Account, CurrencyCode
 from app.models.category import Category
 from app.models.transaction import Transaction, TransactionType
 from app.repositories.base import BaseRepository, _month_range
+from app.repositories.conversion import converted_amount, first_missing_rate
 from app.schemas.transaction import TransactionFilter
 
 
@@ -96,14 +97,24 @@ class TransactionRepository(BaseRepository[Transaction]):
         await self.session.flush()
         return transaction
 
-    async def get_monthly_summary(self, owner_id: int, month: date) -> dict:
+    async def find_missing_rate(
+        self, owner_id: int, base: CurrencyCode, date_from: date, date_to: date
+    ) -> tuple[CurrencyCode, date] | None:
+        """First (currency, date) in the range that can't be converted to `base`, if any."""
+        row = (
+            await self.session.execute(first_missing_rate(owner_id, base, date_from, date_to))
+        ).first()
+        return (row.currency, row.first_date) if row else None
+
+    async def get_monthly_summary(self, owner_id: int, month: date, base: CurrencyCode) -> dict:
         start, end = _month_range(month)
+        amount = converted_amount(base)
         result = await self.session.execute(
             select(
                 func.coalesce(
                     func.sum(
                         case(
-                            (Transaction.type == TransactionType.INCOME, Transaction.amount),
+                            (Transaction.type == TransactionType.INCOME, amount),
                             else_=Decimal("0"),
                         )
                     ),
@@ -112,7 +123,7 @@ class TransactionRepository(BaseRepository[Transaction]):
                 func.coalesce(
                     func.sum(
                         case(
-                            (Transaction.type == TransactionType.EXPENSE, Transaction.amount),
+                            (Transaction.type == TransactionType.EXPENSE, amount),
                             else_=Decimal("0"),
                         )
                     ),
@@ -130,13 +141,16 @@ class TransactionRepository(BaseRepository[Transaction]):
         row = result.one()
         return {"total_income": row.total_income, "total_expenses": row.total_expenses}
 
-    async def get_category_breakdown(self, owner_id: int, month: date) -> list[dict]:
+    async def get_category_breakdown(
+        self, owner_id: int, month: date, base: CurrencyCode
+    ) -> list[dict]:
         start, end = _month_range(month)
+        total = func.sum(converted_amount(base))
         result = await self.session.execute(
             select(
                 Category.id.label("category_id"),
                 Category.name.label("category_name"),
-                func.sum(Transaction.amount).label("total_amount"),
+                total.label("total_amount"),
             )
             .join(Account, Transaction.account_id == Account.id)
             .join(Category, Transaction.category_id == Category.id)
@@ -148,7 +162,7 @@ class TransactionRepository(BaseRepository[Transaction]):
                 Transaction.date < end,
             )
             .group_by(Category.id, Category.name)
-            .order_by(func.sum(Transaction.amount).desc())
+            .order_by(total.desc())
         )
         return [
             {
@@ -159,7 +173,9 @@ class TransactionRepository(BaseRepository[Transaction]):
             for row in result.all()
         ]
 
-    async def get_cashflow(self, owner_id: int, date_from: date, date_to: date) -> list[dict]:
+    async def get_cashflow(
+        self, owner_id: int, date_from: date, date_to: date, base: CurrencyCode
+    ) -> list[dict]:
         """Daily income/expenses plus a running total of net cash flow.
 
         The `daily` CTE aggregates one row per day; the outer query then adds
@@ -167,13 +183,14 @@ class TransactionRepository(BaseRepository[Transaction]):
         net since `date_from`.
         """
         day = func.date(Transaction.date)
+        amount = converted_amount(base)
         daily = (
             select(
                 day.label("period"),
                 func.coalesce(
                     func.sum(
                         case(
-                            (Transaction.type == TransactionType.INCOME, Transaction.amount),
+                            (Transaction.type == TransactionType.INCOME, amount),
                             else_=Decimal("0"),
                         )
                     ),
@@ -182,7 +199,7 @@ class TransactionRepository(BaseRepository[Transaction]):
                 func.coalesce(
                     func.sum(
                         case(
-                            (Transaction.type == TransactionType.EXPENSE, Transaction.amount),
+                            (Transaction.type == TransactionType.EXPENSE, amount),
                             else_=Decimal("0"),
                         )
                     ),

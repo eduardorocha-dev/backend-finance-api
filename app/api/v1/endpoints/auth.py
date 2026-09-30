@@ -14,7 +14,14 @@ from app.core.security import (
 from app.db.session import get_db
 from app.models.user import User
 from app.repositories.user import UserRepository
-from app.schemas.user import RefreshRequest, TokenResponse, UserCreate, UserLogin, UserRead
+from app.schemas.user import (
+    RefreshRequest,
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserRead,
+    UserSettingsUpdate,
+)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -36,6 +43,7 @@ async def register(
         email=data.email,
         full_name=data.full_name,
         hashed_password=hash_password(data.password),
+        base_currency=data.base_currency,
     )
     await session.commit()
     return user
@@ -102,4 +110,17 @@ async def refresh(
 async def me(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:
+    return current_user
+
+
+@router.patch("/me", response_model=UserRead)
+async def update_me(
+    data: UserSettingsUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> User:
+    updates = data.model_dump(exclude_none=True)
+    if updates:
+        current_user = await UserRepository(session).update(current_user, **updates)
+        await session.commit()
     return current_user

@@ -314,6 +314,7 @@ POST /api/v1/auth/register
 POST /api/v1/auth/login
 POST /api/v1/auth/refresh
 GET  /api/v1/auth/me
+PATCH /api/v1/auth/me             # full_name, base_currency
 ```
 
 ### Accounts
@@ -363,6 +364,11 @@ DELETE /api/v1/budgets/{id}
 ```
 
 ### Reports
+
+Reports are in your `base_currency` (set at registration or with `PATCH /auth/me`; defaults to USD).
+Each amount is converted with the latest exchange rate effective on or before its transaction date
+(a rate entered in the opposite direction is used inverted). If a rate is missing, the report
+returns `422` naming the currency pair and date instead of mixing currencies.
 
 ```http
 GET /api/v1/reports/monthly       # income vs expense summary
