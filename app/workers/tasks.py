@@ -124,8 +124,11 @@ def send_budget_alert(user_id: int, category_name: str, usage_pct: float) -> Non
 
 @celery_app.task(name="app.workers.tasks.generate_export", bind=True, max_retries=3)
 def generate_export(self, export_job_id: int) -> None:
-    """Generate a CSV or PDF export file and update the ExportJob record."""
+    """Generate a CSV or PDF export file, update the ExportJob and email the user."""
+    from app.core.config import settings
     from app.models.export import ExportFormat, ExportJob, ExportStatus
+    from app.models.user import User
+    from app.utils.email import send_email
     from app.utils.export import generate_csv, generate_pdf
 
     with _get_session() as session:
@@ -139,14 +142,14 @@ def generate_export(self, export_job_id: int) -> None:
 
         try:
             if export_job.format == ExportFormat.CSV:
-                file_path = generate_csv(
+                location = generate_csv(
                     session,
                     export_job.owner_id,
                     export_job.date_from,
                     export_job.date_to,
                 )
             else:
-                file_path = generate_pdf(
+                location = generate_pdf(
                     session,
                     export_job.owner_id,
                     export_job.date_from,
@@ -154,9 +157,21 @@ def generate_export(self, export_job_id: int) -> None:
                 )
 
             export_job.status = ExportStatus.DONE
-            export_job.file_url = file_path
+            export_job.file_location = location
             session.commit()
-            logger.info("Export job %s completed: %s", export_job_id, file_path)
+            logger.info("Export job %s completed: %s", export_job_id, location)
+
+            user = session.get(User, export_job.owner_id)
+            if user is not None:
+                link = f"{settings.APP_BASE_URL}/api/v1/exports/{export_job.id}/download"
+                send_email(
+                    user.email,
+                    f"Your fintrack {export_job.format.value.upper()} export is ready",
+                    f"Hi {user.full_name},\n\n"
+                    f"Your export for {export_job.date_from} → {export_job.date_to} is ready.\n"
+                    f"Download it here (you'll need to be logged in):\n\n  {link}\n\n"
+                    "— fintrack",
+                )
 
         except Exception as exc:
             session.rollback()  # the error may have left the transaction unusable
@@ -164,6 +179,16 @@ def generate_export(self, export_job_id: int) -> None:
                 export_job.status = ExportStatus.FAILED
                 session.commit()
                 logger.exception("Export job %s failed after all retries", export_job_id)
+                user = session.get(User, export_job.owner_id)
+                if user is not None:
+                    send_email(
+                        user.email,
+                        f"Your fintrack {export_job.format.value.upper()} export failed",
+                        f"Hi {user.full_name},\n\n"
+                        f"We couldn't generate your export for {export_job.date_from} → "
+                        f"{export_job.date_to}. Please try requesting it again.\n\n"
+                        "— fintrack",
+                    )
                 raise
 
             # A retry is scheduled, so the export isn't failed yet: show it as queued again.

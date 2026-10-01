@@ -32,11 +32,11 @@ class ExportRepository(BaseRepository[ExportJob]):
         self,
         export_job: ExportJob,
         status: ExportStatus,
-        file_url: str | None = None,
+        file_location: str | None = None,
     ) -> ExportJob:
         export_job.status = status
-        if file_url is not None:
-            export_job.file_url = file_url
+        if file_location is not None:
+            export_job.file_location = file_location
         await self.session.flush()
         await self.session.refresh(export_job)
         return export_job

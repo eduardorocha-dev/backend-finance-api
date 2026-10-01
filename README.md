@@ -35,7 +35,7 @@
 - 📊 **Transaction management** — soft-delete (records are never physically removed) with created/updated timestamps
 - 🏷️ **Categories & Budgets** — user-defined categories with monthly spending limits and alert thresholds
 - 📈 **Financial reports** — monthly summaries, category breakdowns, and daily cash flow with a running total (PostgreSQL CTE + window function)
-- 📤 **Async exports** — request CSV or PDF exports that are generated in the background and delivered via email
+- 📤 **Async exports** — CSV or PDF generated in the background; the download link is emailed when it's ready
 - ⏰ **Scheduled jobs** — monthly budget carry-over, weekly summary emails, recurring transactions, and daily balance snapshots via Celery Beat
 - 🔔 **Budget alerts** — one email per budget when spending reaches 80% of the monthly limit (again if the limit changes)
 - 🐳 **Fully containerized** — Docker Compose setup for one-command local development
@@ -290,6 +290,7 @@ All common tasks are available via `make`. Run `make <command>` from the project
 | `SECRET_KEY` | JWT signing key (use `openssl rand -hex 32`) | **required** |
 | `DATABASE_URL` | Async PostgreSQL URL | `postgresql+asyncpg://...` |
 | `REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
+| `APP_BASE_URL` | Public address of the API, used for links in emails | `http://localhost:8000` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | JWT access token lifetime | `30` |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | JWT refresh token lifetime | `7` |
 | `MAIL_SERVER` | SMTP server hostname | `smtp.gmail.com` |
@@ -297,7 +298,7 @@ All common tasks are available via `make`. Run `make <command>` from the project
 | `MAIL_PASSWORD` | SMTP password or app password | — |
 | `AWS_ACCESS_KEY_ID` | S3 key for file uploads (optional) | — |
 | `AWS_SECRET_ACCESS_KEY` | S3 secret key for file uploads (optional) | — |
-| `AWS_BUCKET_NAME` | S3 bucket name for exports (optional) | — |
+| `AWS_BUCKET_NAME` | S3 bucket for exports (optional; can stay private, downloads use presigned links) | — |
 
 See `app/core/config.py` for the full list of settings and their defaults.
 
@@ -380,8 +381,11 @@ GET /api/v1/reports/cashflow      # daily net cash flow + running total
 
 ```http
 POST /api/v1/exports              # request async CSV or PDF
-GET  /api/v1/exports/{id}         # poll status + get download link
+GET  /api/v1/exports/{id}         # poll status; file_url is set once it's done
+GET  /api/v1/exports/{id}/download  # the file (or a 15-minute S3 link); 409 until it's done
 ```
+
+When an export finishes, the user is emailed a download link built from `APP_BASE_URL`.
 
 ### Exchange Rates
 

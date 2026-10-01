@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # Redis / Celery
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # Public address of this API, used to build links in emails (no trailing slash)
+    APP_BASE_URL: str = "http://localhost:8000"
+
     # Email
     MAIL_SERVER: str = "smtp.gmail.com"
     MAIL_PORT: int = 587

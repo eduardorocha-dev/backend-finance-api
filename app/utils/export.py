@@ -23,37 +23,55 @@ def _ensure_exports_dir() -> None:
     os.makedirs(EXPORTS_DIR, exist_ok=True)
 
 
-def _upload_to_s3(filepath: str, filename: str) -> str:
-    """Upload a file to S3 and return its public URL.
+S3_PREFIX = "s3://"
+# How long a download link handed out by GET /exports/{id}/download stays valid.
+PRESIGNED_URL_SECONDS = 15 * 60
 
-    Falls back to the local path if AWS credentials are not configured.
+
+def _s3_client():
+    import boto3
+
+    from app.core.config import settings
+
+    return boto3.client(
+        "s3",
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+    )
+
+
+def _store(filepath: str, filename: str) -> str:
+    """Upload the file to S3 if configured and return where it is stored.
+
+    Returns `s3://bucket/key`, or the local path when S3 isn't configured.
     """
     from app.core.config import settings
 
     if not settings.AWS_ACCESS_KEY_ID or not settings.AWS_BUCKET_NAME:
         return filepath
 
-    import boto3
+    _s3_client().upload_file(filepath, settings.AWS_BUCKET_NAME, filename)
+    return f"{S3_PREFIX}{settings.AWS_BUCKET_NAME}/{filename}"
 
-    s3 = boto3.client(
-        "s3",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+
+def presigned_download_url(location: str) -> str:
+    """Short-lived URL for a file stored at `s3://bucket/key` (the bucket can stay private)."""
+    bucket, _, key = location.removeprefix(S3_PREFIX).partition("/")
+    return _s3_client().generate_presigned_url(
+        "get_object",
+        Params={"Bucket": bucket, "Key": key},
+        ExpiresIn=PRESIGNED_URL_SECONDS,
     )
-    s3.upload_file(filepath, settings.AWS_BUCKET_NAME, filename)
-    return f"https://{settings.AWS_BUCKET_NAME}.s3.amazonaws.com/{filename}"
 
 
-def generate_csv(session: Session, owner_id: int, date_from: date, date_to: date) -> str:
-    """Generate a CSV file for the owner's transactions in the given date range.
-
-    Returns the absolute path to the generated file.
-    """
-    rows = session.execute(
+def _rows(session: Session, owner_id: int, date_from: date, date_to: date):
+    """The owner's transactions in the date range, oldest first, with account currency."""
+    return session.execute(
         select(
             Transaction.date,
             Transaction.type,
             Transaction.amount,
+            Account.currency,
             Transaction.description,
             Category.name.label("category_name"),
             Account.name.label("account_name"),
@@ -69,15 +87,21 @@ def generate_csv(session: Session, owner_id: int, date_from: date, date_to: date
         .order_by(Transaction.date.asc())
     ).all()
 
+
+def generate_csv(session: Session, owner_id: int, date_from: date, date_to: date) -> str:
+    """Generate a CSV of the owner's transactions in the range; returns where it is stored."""
+    rows = _rows(session, owner_id, date_from, date_to)
+
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["date", "type", "amount", "description", "category", "account"])
+    writer.writerow(["date", "type", "amount", "currency", "description", "category", "account"])
     for row in rows:
         writer.writerow(
             [
                 row.date.strftime("%Y-%m-%d"),
                 row.type.value,
                 str(row.amount),
+                row.currency.value,
                 row.description or "",
                 row.category_name,
                 row.account_name,
@@ -90,39 +114,18 @@ def generate_csv(session: Session, owner_id: int, date_from: date, date_to: date
     with open(filepath, "w", newline="") as f:
         f.write(buffer.getvalue())
 
-    return _upload_to_s3(filepath, filename)
+    return _store(filepath, filename)
 
 
 def generate_pdf(session: Session, owner_id: int, date_from: date, date_to: date) -> str:
-    """Generate a PDF export of the owner's transactions in the given date range.
-
-    Returns the absolute path to the generated file.
-    """
+    """Generate a PDF of the owner's transactions in the range; returns where it is stored."""
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib.units import cm
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-    rows = session.execute(
-        select(
-            Transaction.date,
-            Transaction.type,
-            Transaction.amount,
-            Transaction.description,
-            Category.name.label("category_name"),
-            Account.name.label("account_name"),
-        )
-        .join(Account, Transaction.account_id == Account.id)
-        .join(Category, Transaction.category_id == Category.id)
-        .where(
-            Account.owner_id == owner_id,
-            Transaction.is_deleted == False,  # noqa: E712
-            Transaction.date >= date_from,
-            Transaction.date < date_to + timedelta(days=1),
-        )
-        .order_by(Transaction.date.asc())
-    ).all()
+    rows = _rows(session, owner_id, date_from, date_to)
 
     _ensure_exports_dir()
     filename = f"export_{uuid.uuid4().hex}.pdf"
@@ -142,7 +145,7 @@ def generate_pdf(session: Session, owner_id: int, date_from: date, date_to: date
             [
                 row.date.strftime("%Y-%m-%d"),
                 row.type.value,
-                f"${row.amount:,.2f}",
+                f"{row.amount:,.2f} {row.currency.value}",
                 row.description or "",
                 row.category_name,
                 row.account_name,
@@ -166,4 +169,4 @@ def generate_pdf(session: Session, owner_id: int, date_from: date, date_to: date
 
     elements.append(table)
     doc.build(elements)
-    return _upload_to_s3(filepath, filename)
+    return _store(filepath, filename)
