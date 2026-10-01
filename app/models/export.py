@@ -33,7 +33,8 @@ class ExportJob(Base, TimestampMixin):
     )
     date_from: Mapped[date] = mapped_column(Date, nullable=False)
     date_to: Mapped[date] = mapped_column(Date, nullable=False)
-    # Populated by the Celery task once the file is generated
-    file_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Where the generated file is stored: a local path or s3://bucket/key.
+    # Internal only; clients download through GET /exports/{id}/download.
+    file_location: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     owner: Mapped["User"] = relationship(back_populates="exports")

@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user
@@ -30,3 +31,19 @@ async def get_export_status(
     session: Annotated[AsyncSession, Depends(get_db)],
 ):
     return await ExportService(session).get(current_user.id, export_id)
+
+
+@router.get(
+    "/{export_id}/download",
+    responses={
+        200: {"description": "The file (CSV or PDF)"},
+        307: {"description": "Redirect to a short-lived S3 download link"},
+        409: {"description": "The export isn't finished yet"},
+    },
+)
+async def download_export(
+    export_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> Response:
+    return await ExportService(session).download(current_user.id, export_id)

@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 
 class ExportFormat(str, Enum):
@@ -34,9 +34,14 @@ class ExportRead(BaseModel):
     status: ExportStatus
     date_from: date
     date_to: date
-    # file_url is None while the export is still being generated,
-    # and populated once the Celery task finishes
-    file_url: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def file_url(self) -> str | None:
+        """Where to download the file once it's ready (None until then)."""
+        if self.status != ExportStatus.DONE:
+            return None
+        return f"/api/v1/exports/{self.id}/download"
